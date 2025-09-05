@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<title>QR Word Match</title>
+	<style>
+		:root { --bg:#0b0d12; --fg:#f7f7f7; --muted:#a8b0bd; --ok:#1cc88a; --bad:#ff5d5d; }
+		* { box-sizing: border-box; }
+		body {
+			margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+			font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+			display: grid; min-height: 100vh; grid-template-rows: auto 1fr auto;
+		}
+		header, footer { padding: 12px 16px; background: #0f131a; border-bottom: 1px solid #151a22; }
+		header h1 { margin: 0; font-size: 18px; letter-spacing: .4px; }
+		main { padding: 14px; display: grid; gap: 12px; align-content: start; }
+		.card {
+			background: #111722; border: 1px solid #1c2432; border-radius: 14px; padding: 12px;
+			display: grid; gap: 10px;
+		}
+		.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+		button, select {
+			background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
+			padding: 10px 14px; font-size: 16px;
+		}
+		button:active { transform: translateY(1px); }
+		.word {
+			font-size: clamp(28px, 7vw, 60px); text-align: center; font-weight: 800; letter-spacing: .8px;
+			padding: 12px 10px; border-radius: 12px; background: #0f1520; border: 1px dashed #25324a;
+		}
+		.status { text-align: center; font-weight: 700; min-height: 1.2em; }
+		.status.ok { color: var(--ok); }
+		.status.bad { color: var(--bad); }
+		#reader {
+			width: 100%; max-width: 560px; margin: 0 auto; border-radius: 12px; overflow: hidden;
+			border: 1px solid #283449; background: #0a0f16;
+		}
+		.small { color: var(--muted); font-size: 12px; }
+		hr { border: none; border-top: 1px solid #1c2432; }
+		.row { display: flex; gap: 8px; flex-wrap: wrap; }
+		.tag { font-size: 12px; color: var(--muted); background:#0d1420; border:1px solid #1f2a3d; padding:6px 8px; border-radius:999px;}
+		.credit { font-size: 12px; color: var(--muted); }
+	</style>
+</head>
+<body>
+	<header><h1>QR Word Match</h1></header>
+	<main>
+		<div class="card">
+			<div class="row" style="align-items:center; justify-content:space-between;">
+				<div class="row">
+					<button id="startBtn">Start camera</button>
+					<button id="stopBtn" disabled>Stop</button>
+					<button id="nextBtn">New word</button>
+				</div>
+				<select id="mode">
+					<option value="exact" selected>Exact match</option>
+					<option value="loose">Ignore accents & case</option>
+				</select>
+			</div>
+			<div id="currentWord" class="word" aria-live="polite">gato</div>
+			<div class="status" id="status"></div>
+			<div id="reader"></div>
+			<div class="row">
+				<div class="tag" id="scoreTag">Score: 0</div>
+				<div class="tag" id="streakTag">Streak: 0 🔥</div>
+			</div>
+			<p class="small">Tip: The QR code should contain exactly the word you want the child to read (e.g., <code>gato</code>, <code>ratón</code>, <code>castillo</code>). You can print any language.</p>
+		</div>
+
+		<div class="card">
+			<strong>Word list</strong>
+			<p class="small">Edit below to customize. One word per line.</p>
+			<textarea id="wordList" rows="6" style="width:100%; background:#0f1520; color:var(--fg); border:1px solid #25324a; border-radius:10px; padding:10px; font-size:15px;">gato
+ratón
+castillo
+elefante
+perro
+tres</textarea>
+			<div class="row">
+				<button id="saveWords">Save list</button>
+				<span class="small">Saved to your browser.</span>
+			</div>
+		</div>
+
+		<div class="card">
+			<strong>How it works</strong>
+			<ol class="small">
+				<li>Press <em>Start camera</em> and allow access.</li>
+				<li>Show a card’s QR code to the camera. The app scans continuously.</li>
+				<li>If the scanned text matches the word on screen, you’ll see a celebration 🎉.</li>
+			</ol>
+			<p class="credit">Built with <code>html5-qrcode</code> for reliable mobile camera scanning.</p>
+		</div>
+	</main>
+	<footer><span class="small">Works on iPhone/iPad/Android in Safari/Chrome. Use over HTTPS for camera access.</span></footer>
+
+	<!-- QR scanning + confetti -->
+	<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+	<script>
+		const wordEl = document.getElementById('currentWord');
+		const statusEl = document.getElementById('status');
+		const startBtn = document.getElementById('startBtn');
+		const stopBtn = document.getElementById('stopBtn');
+		const nextBtn = document.getElementById('nextBtn');
+		const modeSel = document.getElementById('mode');
+		const wordListTA = document.getElementById('wordList');
+		const saveWordsBtn = document.getElementById('saveWords');
+		const scoreTag = document.getElementById('scoreTag');
+		const streakTag = document.getElementById('streakTag');
+
+		const LS_KEY = "qr-word-game:list";
+		let words = loadWords();
+		let score = 0, streak = 0;
+
+		function loadWords(){
+			const saved = localStorage.getItem(LS_KEY);
+			if(saved) wordListTA.value = saved;
+			return wordListTA.value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean);
+		}
+		function saveWords(){
+			localStorage.setItem(LS_KEY, wordListTA.value);
+			words = loadWords();
+			toast("Saved!");
+		}
+		saveWordsBtn.addEventListener('click', saveWords);
+
+		function randomWord(){
+			if(words.length === 0){ words = ["gato"]; }
+			const i = Math.floor(Math.random()*words.length);
+			return words[i];
+		}
+		function setWord(w){
+			wordEl.textContent = w;
+			statusEl.textContent = "";
+			statusEl.className = "status";
+		}
+		setWord(randomWord());
+
+		function normalize(s){
+			if(modeSel.value === "exact") return s.trim();
+			return s.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
+		}
+
+		function celebrate(){
+			confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
+			confetti({ particleCount: 60, angle: 120, spread: 55, origin: { y: 0.6, x: 0.2 } });
+			confetti({ particleCount: 60, angle: 60, spread: 55, origin: { y: 0.6, x: 0.8 } });
+		}
+
+		function updateScore(ok){
+			if(ok){ score += 1; streak += 1; } else { streak = 0; }
+			scoreTag.textContent = "Score: " + score;
+			streakTag.textContent = "Streak: " + streak + " 🔥";
+		}
+
+		// Scanner
+		let html5QrCode = null;
+		let scanning = false;
+		let lastText = null;
+		async function start(){
+			if(scanning) return;
+			const w = document.getElementById('reader').clientWidth;
+			html5QrCode = new Html5Qrcode("reader", { verbose: false });
+			const cameras = await Html5Qrcode.getCameras();
+			const camId = cameras?.[0]?.id;
+			if(!camId){ alert("No camera found"); return; }
+			await html5QrCode.start(
+				{ deviceId: { exact: camId } },
+				{ fps: 10, qrbox: { width: Math.min(280, w-20), height: Math.min(280, w-20) }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+				onScan,
+				onScanError
+			);
+			scanning = true;
+			startBtn.disabled = true; stopBtn.disabled = false;
+			nextBtn.disabled = true;
+		}
+		async function stop(){
+			if(!scanning) return;
+			await html5QrCode.stop(); await html5QrCode.clear();
+			scanning = false;
+			startBtn.disabled = false; stopBtn.disabled = true;
+			nextBtn.disabled = false;
+		}
+		function onScan(decodedText){
+			if(decodedText === lastText) return;
+			lastText = decodedText;
+			const target = wordEl.textContent;
+			const ok = normalize(decodedText) === normalize(target);
+			updateScore(ok);
+			if(ok){
+				statusEl.textContent = "✔ Correct: " + decodedText;
+				statusEl.className = "status ok";
+				celebrate();
+				// advance automatically after a short pause
+				setTimeout(()=> setWord(randomWord()), 900);
+			}else{
+				statusEl.textContent = "✖ Not matched: " + decodedText;
+				statusEl.className = "status bad";
+			}
+		}
+		function onScanError(err){ /* ignore continuous decode errors */ }
+
+		startBtn.addEventListener('click', start);
+		stopBtn.addEventListener('click', stop);
+		nextBtn.addEventListener('click', ()=> setWord(randomWord()));
+
+		function toast(msg){
+			const el = document.createElement('div');
+			el.textContent = msg;
+			el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:var(--fg);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
+			document.body.appendChild(el);
+			setTimeout(()=> el.remove(), 1200);
+		}
+
+		// iOS tip: keep screen awake while scanning
+		if ("wakeLock" in navigator) {
+			let lock = null;
+			document.addEventListener('visibilitychange', async () => {
+				if (document.visibilityState === "visible" && scanning) {
+					try { lock = await navigator.wakeLock.request("screen"); } catch {}
+				} else if (lock) { try { lock.release(); } catch {} }
+			});
+		}
+	</script>
+</body>
+</html>
