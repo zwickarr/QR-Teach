@@ -459,6 +459,19 @@ tres</textarea>
 		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org (served via local cache)</span>
 	</footer>
 
+	<div id="netStatusPanel" style="position:fixed; right:12px; bottom:12px; z-index:9999; font-size:12px;">
+		<div style="background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:10px 12px; min-width:220px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
+			<div style="font-weight:700; font-size:12px; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+				<span>📡 Network status</span>
+				<button id="nsToggle" title="Hide panel" style="margin-left:auto; background:#22314a; color:#cde3ff; border-radius:6px; padding:2px 6px; border:1px solid #2b3a56; cursor:pointer;">Hide</button>
+			</div>
+			<div>Bestsearch: <span id="nsBest" style="font-weight:700;">—</span></div>
+			<div>Images: <span id="nsImg" style="font-weight:700;">—</span></div>
+			<div id="nsLast" style="margin-top:6px; opacity:.9;">Last: —</div>
+		</div>
+	</div>
+
+
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
 // =======================
@@ -590,6 +603,30 @@ function showMilestoneOverlay(stars) {
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
+	
+	// Network Status helpers
+	(function(){
+		const ns = { api: '—', img: '—', last: '—', visible: true };
+		const byId = id => document.getElementById(id);
+		function render() {
+			const b = byId('nsBest'), i = byId('nsImg'), l = byId('nsLast'), p = byId('netStatusPanel');
+			if (!b || !i || !l || !p) return;
+			b.textContent = ns.api;
+			i.textContent = ns.img;
+			l.textContent = 'Last: ' + ns.last;
+			p.style.display = ns.visible ? 'block' : 'none';
+		}
+		window.__nsSet = function(key, value) { ns[key] = value; render(); };
+		window.__nsLog = function(msg) { ns.last = msg; render(); };
+		window.__nsShow = function(v) { ns.visible = v; render(); };
+		window.addEventListener('DOMContentLoaded',()=>{
+			const t = document.getElementById('nsToggle');
+			if (t) t.addEventListener('click', ()=> { ns.visible = !ns.visible; t.textContent = ns.visible ? 'Hide' : 'Show'; render(); });
+			render();
+		});
+	})();
+
+
 	// Sound generation
 	function initAudio() {
 		if (!audioContext) {
@@ -904,13 +941,13 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			const apiWorker = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord);
 const apiWorkerAlt = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
 let response = null;
-try { response = await fetch(apiWorker, {mode:'cors'}); } catch(e) { response = null; }
-if (!response || !response.ok) { try { response = await fetch(apiWorkerAlt, {mode:'cors'}); } catch(e) { response = null; } }
+try { response = await fetch(apiWorker, {mode:'cors'}); window.__nsSet && __nsSet('api','Worker'); window.__nsLog && __nsLog('bestsearch via Worker'); } catch(e) { response = null; }
+if (!response || !response.ok) { try { response = await fetch(apiWorkerAlt, {mode:'cors'}); window.__nsSet && __nsSet('api','Worker'); window.__nsLog && __nsLog('bestsearch via Worker (no-diacritics)'); } catch(e) { response = null; } }
 if ((!response || !response.ok)) {
   const apiUrl = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord);
   const apiUrlAlt = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
-  try { response = await fetch(apiUrl, {mode:'cors'}); } catch(e) { response = null; }
-  if (!response || !response.ok) { try { response = await fetch(apiUrlAlt, {mode:'cors'}); } catch(e) { response = null; } }
+  try { response = await fetch(apiUrl, {mode:'cors'}); window.__nsSet && __nsSet('api','ARASAAC'); window.__nsLog && __nsLog('bestsearch via ARASAAC'); } catch(e) { response = null; }
+  if (!response || !response.ok) { try { response = await fetch(apiUrlAlt, {mode:'cors'}); window.__nsSet && __nsSet('api','ARASAAC'); window.__nsLog && __nsLog('bestsearch via ARASAAC (no-diacritics)'); } catch(e) { response = null; } }
 }
 if (response && response.ok) {
   const items = await response.json();
@@ -938,12 +975,12 @@ catch (e) {
 		currentPictogramId = pictogramId;
 		
 		// Direct PNG URL (500px version)
-		const imgUrl = `https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${pictogramId}.png`;
+		const imgUrl = `https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${pictogramId}.png`; window.__nsSet && __nsSet('img', 'Worker'); window.__nsLog && __nsLog(`image via Worker (${pictogramId})`);
 		
 		pictogramEl.innerHTML = `
 			<img src="${imgUrl}" 
 				 alt="${word}" 
-				 onerror="this.onerror=null; this.src='https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png';">
+				 onerror="this.onerror=null; window.__nsSet && __nsSet('img','ARASAAC'); window.__nsLog && __nsLog('image fallback direct'); this.src='https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png';">
 		`;
 		
 		console.log(`Loaded pictogram for "${word}" with ID: ${pictogramId}`);
