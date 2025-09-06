@@ -201,7 +201,40 @@ tres</textarea>
 		words = loadWords();
 		toast("Saved!");
 	}
+	
+	function downloadWords(){
+		const text = wordListTA.value;
+		const blob = new Blob([text], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'word-list.txt';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+		toast("Downloaded word list!");
+	}
+	
+	function loadFromFile(e){
+		const file = e.target.files[0];
+		if (!file) return;
+		
+		const reader = new FileReader();
+		reader.onload = function(event) {
+			wordListTA.value = event.target.result;
+			saveWords();
+			words = loadWords();
+			toast("Loaded " + words.length + " words from file!");
+			setWord(randomWord());
+		};
+		reader.readAsText(file);
+	}
+	
 	saveWordsBtn.addEventListener('click', saveWords);
+	downloadWordsBtn.addEventListener('click', downloadWords);
+	uploadBtn.addEventListener('click', () => fileInput.click());
+	fileInput.addEventListener('change', loadFromFile);
 
 	let words = loadWords();
 	function randomWord(){ 
