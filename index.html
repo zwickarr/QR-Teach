@@ -2,45 +2,33 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>QR Word Match</title>
+	<meta name="color-scheme" content="dark light">
 	<style>
 		:root { --bg:#0b0d12; --fg:#f7f7f7; --muted:#a8b0bd; --ok:#1cc88a; --bad:#ff5d5d; }
 		* { box-sizing: border-box; }
-		body {
-			margin: 0; padding: 0; background: var(--bg); color: var(--fg);
-			font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-			display: grid; min-height: 100vh; grid-template-rows: auto 1fr auto;
-		}
+		body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+			font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+			display: grid; min-height: 100vh; grid-template-rows: auto 1fr auto; }
 		header, footer { padding: 12px 16px; background: #0f131a; border-bottom: 1px solid #151a22; }
 		header h1 { margin: 0; font-size: 18px; letter-spacing: .4px; }
 		main { padding: 14px; display: grid; gap: 12px; align-content: start; }
-		.card {
-			background: #111722; border: 1px solid #1c2432; border-radius: 14px; padding: 12px;
-			display: grid; gap: 10px;
-		}
-		.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-		button, select {
-			background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
-			padding: 10px 14px; font-size: 16px;
-		}
-		button:active { transform: translateY(1px); }
-		.word {
-			font-size: clamp(28px, 7vw, 60px); text-align: center; font-weight: 800; letter-spacing: .8px;
-			padding: 12px 10px; border-radius: 12px; background: #0f1520; border: 1px dashed #25324a;
-		}
+		.card { background: #111722; border: 1px solid #1c2432; border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
+		button, select { background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
+			padding: 10px 14px; font-size: 16px; cursor: pointer; }
+		.word { font-size: clamp(28px, 7vw, 60px); text-align: center; font-weight: 800; letter-spacing: .8px;
+			padding: 12px 10px; border-radius: 12px; background: #0f1520; border: 1px dashed #25324a; }
 		.status { text-align: center; font-weight: 700; min-height: 1.2em; }
-		.status.ok { color: var(--ok); }
-		.status.bad { color: var(--bad); }
-		#reader {
-			width: 100%; max-width: 560px; margin: 0 auto; border-radius: 12px; overflow: hidden;
-			border: 1px solid #283449; background: #0a0f16;
-		}
+		.status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+		#reader { width: 100%; max-width: 560px; margin: 0 auto; border-radius: 12px; overflow: hidden;
+			border: 1px solid #283449; background: #0a0f16; position: relative; aspect-ratio: 1/1; }
+		video { width: 100%; height: 100%; object-fit: cover; }
+		canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 		.small { color: var(--muted); font-size: 12px; }
-		hr { border: none; border-top: 1px solid #1c2432; }
 		.row { display: flex; gap: 8px; flex-wrap: wrap; }
 		.tag { font-size: 12px; color: var(--muted); background:#0d1420; border:1px solid #1f2a3d; padding:6px 8px; border-radius:999px;}
-		.credit { font-size: 12px; color: var(--muted); }
+		.selects { display:flex; gap:8px; align-items:center; }
 	</style>
 </head>
 <body>
@@ -53,19 +41,29 @@
 					<button id="stopBtn" disabled>Stop</button>
 					<button id="nextBtn">New word</button>
 				</div>
-				<select id="mode">
-					<option value="exact" selected>Exact match</option>
-					<option value="loose">Ignore accents & case</option>
-				</select>
+				<div class="selects">
+					<select id="cameraSel" title="Choose camera">
+						<option value="">(choose camera)</option>
+					</select>
+					<select id="mode">
+						<option value="exact" selected>Exact match</option>
+						<option value="loose">Ignore accents & case</option>
+					</select>
+				</div>
 			</div>
 			<div id="currentWord" class="word" aria-live="polite">gato</div>
 			<div class="status" id="status"></div>
-			<div id="reader"></div>
+			<div id="reader">
+				<video id="video" playsinline muted></video>
+				<canvas id="overlay"></canvas>
+			</div>
 			<div class="row">
 				<div class="tag" id="scoreTag">Score: 0</div>
 				<div class="tag" id="streakTag">Streak: 0 🔥</div>
+				<div class="tag" id="camInfo">Cameras: ?</div>
 			</div>
-			<p class="small">Tip: The QR code should contain exactly the word you want the child to read (e.g., <code>gato</code>, <code>ratón</code>, <code>castillo</code>). You can print any language.</p>
+			<div id="err" class="small" style="color:#ff8c8c;"></div>
+			<p class="small">Tip: The QR code should contain exactly the word you want the child to read.</p>
 		</div>
 
 		<div class="card">
@@ -82,147 +80,220 @@ tres</textarea>
 				<span class="small">Saved to your browser.</span>
 			</div>
 		</div>
-
-		<div class="card">
-			<strong>How it works</strong>
-			<ol class="small">
-				<li>Press <em>Start camera</em> and allow access.</li>
-				<li>Show a card’s QR code to the camera. The app scans continuously.</li>
-				<li>If the scanned text matches the word on screen, you’ll see a celebration 🎉.</li>
-			</ol>
-			<p class="credit">Built with <code>html5-qrcode</code> for reliable mobile camera scanning.</p>
-		</div>
 	</main>
-	<footer><span class="small">Works on iPhone/iPad/Android in Safari/Chrome. Use over HTTPS for camera access.</span></footer>
+	<footer><span class="small">Use over HTTPS for camera access.</span></footer>
 
-	<!-- QR scanning + confetti -->
-	<script src="/vendor/html5-qrcode.min.js"></script>
-	<script src="/vendor/confetti.browser.min.js"></script>
 	<script>
-		const wordEl = document.getElementById('currentWord');
-		const statusEl = document.getElementById('status');
-		const startBtn = document.getElementById('startBtn');
-		const stopBtn = document.getElementById('stopBtn');
-		const nextBtn = document.getElementById('nextBtn');
-		const modeSel = document.getElementById('mode');
-		const wordListTA = document.getElementById('wordList');
-		const saveWordsBtn = document.getElementById('saveWords');
-		const scoreTag = document.getElementById('scoreTag');
-		const streakTag = document.getElementById('streakTag');
+	const wordEl = document.getElementById('currentWord');
+	const statusEl = document.getElementById('status');
+	const startBtn = document.getElementById('startBtn');
+	const stopBtn = document.getElementById('stopBtn');
+	const nextBtn = document.getElementById('nextBtn');
+	const modeSel = document.getElementById('mode');
+	const wordListTA = document.getElementById('wordList');
+	const saveWordsBtn = document.getElementById('saveWords');
+	const scoreTag = document.getElementById('scoreTag');
+	const streakTag = document.getElementById('streakTag');
+	const cameraSel = document.getElementById('cameraSel');
+	const camInfo = document.getElementById('camInfo');
+	const errEl = document.getElementById('err');
+	const video = document.getElementById('video');
+	const overlay = document.getElementById('overlay');
+	const ctx = overlay.getContext('2d');
 
-		const LS_KEY = "qr-word-game:list";
-		let words = loadWords();
-		let score = 0, streak = 0;
+	const LS_KEY = "qr-word-game:list";
+	const LS_CAM = "qr-word-game:camera-id";
+	let words = loadWords();
+	let score = 0, streak = 0;
+	let scanning = false;
+	let stream = null;
+	let detector = null;
+	let rafId = null;
+	let lastText = null;
 
-		function loadWords(){
-			const saved = localStorage.getItem(LS_KEY);
-			if(saved) wordListTA.value = saved;
-			return wordListTA.value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean);
-		}
-		function saveWords(){
-			localStorage.setItem(LS_KEY, wordListTA.value);
-			words = loadWords();
-			toast("Saved!");
-		}
-		saveWordsBtn.addEventListener('click', saveWords);
+	function loadWords(){
+		const saved = localStorage.getItem(LS_KEY);
+		if(saved) wordListTA.value = saved;
+		return wordListTA.value.split(/[
+]+/).map(s=>s.trim()).filter(Boolean);
+	}
+	function saveWords(){
+		localStorage.setItem(LS_KEY, wordListTA.value);
+		words = loadWords();
+		toast("Saved!");
+	}
+	saveWordsBtn.addEventListener('click', saveWords);
 
-		function randomWord(){
-			if(words.length === 0){ words = ["gato"]; }
-			const i = Math.floor(Math.random()*words.length);
-			return words[i];
-		}
-		function setWord(w){
-			wordEl.textContent = w;
-			statusEl.textContent = "";
-			statusEl.className = "status";
-		}
-		setWord(randomWord());
+	function randomWord(){
+		if(words.length === 0){ words = ["gato"]; }
+		const i = Math.floor(Math.random()*words.length);
+		return words[i];
+	}
+	function setWord(w){
+		wordEl.textContent = w;
+		statusEl.textContent = "";
+		statusEl.className = "status";
+	}
+	setWord(randomWord());
 
-		function normalize(s){
-			if(modeSel.value === "exact") return s.trim();
-			return s.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
-		}
-
-		function celebrate(){
-			confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
-			confetti({ particleCount: 60, angle: 120, spread: 55, origin: { y: 0.6, x: 0.2 } });
-			confetti({ particleCount: 60, angle: 60, spread: 55, origin: { y: 0.6, x: 0.8 } });
-		}
-
-		function updateScore(ok){
-			if(ok){ score += 1; streak += 1; } else { streak = 0; }
-			scoreTag.textContent = "Score: " + score;
-			streakTag.textContent = "Streak: " + streak + " 🔥";
-		}
-
-		// Scanner
-		let html5QrCode = null;
-		let scanning = false;
-		let lastText = null;
-		async function start(){
-			if(scanning) return;
-			const w = document.getElementById('reader').clientWidth;
-			html5QrCode = new Html5Qrcode("reader", { verbose: false });
-			const cameras = await Html5Qrcode.getCameras();
-			const camId = cameras?.[0]?.id;
-			if(!camId){ alert("No camera found"); return; }
-			await html5QrCode.start(
-				{ deviceId: { exact: camId } },
-				{ fps: 10, qrbox: { width: Math.min(280, w-20), height: Math.min(280, w-20) }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
-				onScan,
-				onScanError
-			);
-			scanning = true;
-			startBtn.disabled = true; stopBtn.disabled = false;
-			nextBtn.disabled = true;
-		}
-		async function stop(){
-			if(!scanning) return;
-			await html5QrCode.stop(); await html5QrCode.clear();
-			scanning = false;
-			startBtn.disabled = false; stopBtn.disabled = true;
-			nextBtn.disabled = false;
-		}
-		function onScan(decodedText){
-			if(decodedText === lastText) return;
-			lastText = decodedText;
-			const target = wordEl.textContent;
-			const ok = normalize(decodedText) === normalize(target);
-			updateScore(ok);
-			if(ok){
-				statusEl.textContent = "✔ Correct: " + decodedText;
-				statusEl.className = "status ok";
-				celebrate();
-				// advance automatically after a short pause
-				setTimeout(()=> setWord(randomWord()), 900);
-			}else{
-				statusEl.textContent = "✖ Not matched: " + decodedText;
-				statusEl.className = "status bad";
-			}
-		}
-		function onScanError(err){ /* ignore continuous decode errors */ }
-
-		startBtn.addEventListener('click', start);
-		stopBtn.addEventListener('click', stop);
-		nextBtn.addEventListener('click', ()=> setWord(randomWord()));
-
-		function toast(msg){
-			const el = document.createElement('div');
-			el.textContent = msg;
-			el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:var(--fg);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
-			document.body.appendChild(el);
-			setTimeout(()=> el.remove(), 1200);
-		}
-
-		// iOS tip: keep screen awake while scanning
-		if ("wakeLock" in navigator) {
-			let lock = null;
-			document.addEventListener('visibilitychange', async () => {
-				if (document.visibilityState === "visible" && scanning) {
-					try { lock = await navigator.wakeLock.request("screen"); } catch {}
-				} else if (lock) { try { lock.release(); } catch {} }
+	function normalize(s){
+		if(modeSel.value === "exact") return s.trim();
+		return s.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
+	}
+	function celebrate(){
+		const bursts = 40;
+		for (let i=0;i<bursts;i++) {
+			const d = document.createElement('div');
+			const size = 6 + Math.random()*6;
+			d.style.cssText = `position:fixed;left:${Math.random()*100}vw;top:0; width:${size}px;height:${size}px;background:hsl(${Math.random()*360} 90% 60%);opacity:.9;transform:translateY(-20px);border-radius:2px;transition:transform 1s ease-out, opacity 1s ease-out;z-index:9999`;
+			document.body.appendChild(d);
+			requestAnimationFrame(()=>{
+				d.style.transform = `translateY(${60+Math.random()*40}vh) rotate(${Math.random()*720}deg)`;
+				d.style.opacity = '0';
 			});
+			setTimeout(()=> d.remove(), 1100);
 		}
+	}
+	function updateScore(ok){
+		if(ok){ score += 1; streak += 1; } else { streak = 0; }
+		scoreTag.textContent = "Score: " + score;
+		streakTag.textContent = "Streak: " + streak + " 🔥";
+	}
+	function looksLikeBack(label = "") {
+		const s = (label||"").toLowerCase();
+		return s.includes("back") || s.includes("rear") || s.includes("environment");
+	}
+	async function enumerateCameras() {
+		try {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			const vids = devices.filter(d => d.kind === "videoinput");
+			camInfo.textContent = "Cameras: " + vids.length;
+			cameraSel.innerHTML = "";
+			for (const c of vids) {
+				const opt = document.createElement("option");
+				opt.value = c.deviceId;
+				opt.textContent = c.label || ("Camera " + (cameraSel.length+1));
+				cameraSel.appendChild(opt);
+			}
+			const saved = localStorage.getItem(LS_CAM);
+			if (saved && [...cameraSel.options].some(o => o.value === saved)) {
+				cameraSel.value = saved;
+			} else {
+				const back = vids.find(v => looksLikeBack(v.label));
+				if (back) cameraSel.value = back.deviceId;
+				else if (vids[0]) cameraSel.value = vids[0].deviceId;
+			}
+		} catch(e){}
+	}
+	async function start(){
+		if (scanning) return;
+		if ('BarcodeDetector' in window) {
+			try { detector = new BarcodeDetector({ formats: ['qr_code'] }); }
+			catch(e){ errEl.textContent = "BarcodeDetector init failed: " + e.message; }
+		} else {
+			errEl.textContent = "BarcodeDetector not supported in this browser.";
+		}
+		if (!cameraSel.options.length) { await enumerateCameras(); }
+		let deviceId = cameraSel.value || undefined;
+		const constraints = {
+			audio: false,
+			video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }
+		};
+		try { stream = await navigator.mediaDevices.getUserMedia(constraints); }
+		catch(e){ errEl.textContent = "getUserMedia error: " + e.message; return; }
+		try {
+			const settings = stream.getVideoTracks()[0]?.getSettings?.() || {};
+			if (settings.deviceId) localStorage.setItem(LS_CAM, settings.deviceId);
+			else if (deviceId) localStorage.setItem(LS_CAM, deviceId);
+		} catch {}
+		video.srcObject = stream;
+		await video.play();
+		function resize(){
+			const r = document.getElementById('reader').getBoundingClientRect();
+			overlay.width = r.width * devicePixelRatio;
+			overlay.height = r.height * devicePixelRatio;
+			ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+		}
+		resize(); addEventListener('resize', resize);
+		scanning = true;
+		startBtn.disabled = true; stopBtn.disabled = false; nextBtn.disabled = true;
+		enumerateCameras();
+		scanLoop();
+	}
+	function stop(){
+		if (!scanning) return;
+		cancelAnimationFrame(rafId);
+		if (stream) { for (const t of stream.getTracks()) t.stop(); stream = null; }
+		scanning = false;
+		startBtn.disabled = false; stopBtn.disabled = true; nextBtn.disabled = false;
+		ctx.clearRect(0,0,overlay.width, overlay.height);
+	}
+	async function scanLoop(){
+		if (!scanning) return;
+		try {
+			if (detector) {
+				const dets = await detector.detect(video);
+				if (dets && dets.length) {
+					ctx.clearRect(0,0,overlay.width, overlay.height);
+					for (const d of dets) {
+						const box = d.boundingBox;
+						ctx.strokeStyle = "rgba(0,255,180,.9)";
+						ctx.lineWidth = 3;
+						ctx.strokeRect(box.x, box.y, box.width, box.height);
+						const txt = d.rawValue || "";
+						if (txt && txt !== lastText) {
+							lastText = txt;
+							checkText(txt);
+						}
+					}
+				} else {
+					ctx.clearRect(0,0,overlay.width, overlay.height);
+				}
+			}
+		} catch(e){
+			errEl.textContent = "detect error: " + (e.message || e);
+		}
+		rafId = requestAnimationFrame(scanLoop);
+	}
+	function checkText(decodedText){
+		const target = wordEl.textContent;
+		const ok = normalize(decodedText) === normalize(target);
+		updateScore(ok);
+		if(ok){
+			statusEl.textContent = "✔ Correct: " + decodedText;
+			statusEl.className = "status ok";
+			celebrate();
+			setTimeout(()=> setWord(randomWord()), 900);
+		}else{
+			statusEl.textContent = "✖ Not matched: " + decodedText;
+			statusEl.className = "status bad";
+		}
+	}
+	startBtn.addEventListener('click', start);
+	stopBtn.addEventListener('click', stop);
+	nextBtn.addEventListener('click', ()=> setWord(randomWord()));
+	cameraSel.addEventListener('change', async () => {
+		localStorage.setItem(LS_CAM, cameraSel.value);
+		if (scanning) { stop(); start(); }
+	});
+	function toast(msg){
+		const el = document.createElement('div');
+		el.textContent = msg;
+		el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:var(--fg);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
+		document.body.appendChild(el);
+		setTimeout(()=> el.remove(), 1200);
+	}
+	addEventListener('error', e => errEl.textContent = 'Error: ' + (e.error?.message || e.message || e.filename));
+	addEventListener('unhandledrejection', e => errEl.textContent = 'Promise error: ' + (e.reason?.message || e.reason));
+	enumerateCameras();
+	if ("wakeLock" in navigator) {
+		let lock = null;
+		document.addEventListener('visibilitychange', async () => {
+			if (document.visibilityState === "visible" && scanning) {
+				try { lock = await navigator.wakeLock.request("screen"); } catch {}
+			} else if (lock) { try { lock.release(); } catch {} }
+		});
+	}
 	</script>
 </body>
 </html>
