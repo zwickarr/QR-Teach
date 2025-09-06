@@ -453,199 +453,107 @@ tres</textarea>
 		try {
 			const cleanWord = word.toLowerCase().trim().normalize("NFD").replace(/\p{Diacritic}/gu,"");
 			
-			// Since the API has CORS issues, we'll use a mapping of common words to their known IDs
-			// These IDs are from the ARASAAC database
-			const wordToId = {
-				// Animals
-				'gato': 2391,
-				'perro': 2517,
-				'raton': 6079,
-				'ratón': 6079,
-				'elefante': 35669,
-				'león': 35671,
-				'leon': 35671,
-				'tigre': 35670,
-				'oso': 2519,
-				'conejo': 7148,
-				'pájaro': 8969,
-				'pajaro': 8969,
-				'pez': 6086,
-				'vaca': 2518,
-				'caballo': 7282,
-				'cerdo': 7225,
-				'oveja': 7233,
-				'pollo': 6001,
-				'pato': 7162,
-				
-				// Objects/Places
-				'casa': 6321,
-				'castillo': 7296,
-				'escuela': 2435,
-				'árbol': 5678,
-				'arbol': 5678,
-				'sol': 5825,
-				'luna': 7011,
-				'estrella': 35831,
-				'agua': 2513,
-				'fuego': 7394,
-				'coche': 5501,
-				'libro': 2449,
-				'mesa': 2497,
-				'silla': 2632,
-				'cama': 6295,
-				'puerta': 11369,
-				'ventana': 11374,
-				'pelota': 2433,
-				'juguete': 6195,
-				
-				// Numbers
-				'uno': 10266,
-				'dos': 10267,
-				'tres': 10268,
-				'cuatro': 10269,
-				'cinco': 10270,
-				'seis': 10271,
-				'siete': 10272,
-				'ocho': 10273,
-				'nueve': 10274,
-				'diez': 10265,
-				
-				// Food
-				'manzana': 5810,
-				'plátano': 5811,
-				'platano': 5811,
-				'pan': 5836,
-				'leche': 5857,
-				'queso': 31126,
-				'huevo': 5841,
-				'arroz': 5847,
-				'pasta': 5848,
-				
-				// Colors
-				'rojo': 2612,
-				'azul': 2615,
-				'verde': 2618,
-				'amarillo': 2611,
-				'negro': 2617,
-				'blanco': 2616,
-				'rosa': 11473,
-				'naranja': 2613,
-				'morado': 11476,
-				'gris': 2619,
-				
-				// Actions
-				'comer': 6329,
-				'beber': 2442,
-				'dormir': 6341,
-				'correr': 6325,
-				'saltar': 6348,
-				'jugar': 2461,
-				'leer': 2464,
-				'escribir': 6334,
-				'cantar': 2456,
-				'bailar': 6318,
-				
-				// People/Family
-				'mamá': 7031,
-				'mama': 7031,
-				'papá': 7029,
-				'papa': 7029,
-				'niño': 2488,
-				'niña': 2487,
-				'nina': 2487,
-				'bebé': 2485,
-				'bebe': 2485,
-				'abuelo': 7035,
-				'abuela': 7037,
-				'hermano': 7039,
-				'hermana': 7041,
-				'amigo': 7063,
-				'amiga': 7065,
-				'profesor': 2502,
-				'profesora': 6267,
-				'doctor': 7533,
-				'doctora': 7535
-			};
+			// Try Spanish first (since your word list is in Spanish)
+			let pictogramId = null;
 			
-			// Try to find the word in our mapping
-			let pictogramId = wordToId[cleanWord];
+			// Search in Spanish - using best-search for better results
+			const searchUrlEs = `https://api.arasaac.org/api/v1/pictograms/es/best-search/${encodeURIComponent(cleanWord)}`;
 			
-			// If not found, try some variations
-			if (!pictogramId) {
-				// Try without final 's' for plurals
-				if (cleanWord.endsWith('s')) {
-					const singular = cleanWord.slice(0, -1);
-					pictogramId = wordToId[singular];
+			try {
+				const responseEs = await fetch(searchUrlEs);
+				if (responseEs.ok) {
+					const dataEs = await responseEs.json();
+					console.log('Spanish search results:', dataEs);
+					if (dataEs && dataEs.length > 0) {
+						// Use the first result's ID
+						pictogramId = dataEs[0]._id;
+						console.log('Found pictogram ID:', pictogramId);
+					}
 				}
-				// Try adding common endings
-				if (!pictogramId) {
-					pictogramId = wordToId[cleanWord + 'o'] || wordToId[cleanWord + 'a'];
+			} catch (e) {
+				console.log('Spanish search error:', e);
+				
+				// Try regular search as fallback
+				try {
+					const altSearchUrl = `https://api.arasaac.org/api/v1/pictograms/es/search/${encodeURIComponent(cleanWord)}`;
+					const altResponse = await fetch(altSearchUrl);
+					if (altResponse.ok) {
+						const altData = await altResponse.json();
+						if (altData && altData.length > 0) {
+							pictogramId = altData[0]._id;
+							console.log('Found pictogram ID from alt search:', pictogramId);
+						}
+					}
+				} catch (altE) {
+					console.log('Alternative search also failed');
+				}
+			}
+			
+			// If no Spanish result, try English
+			if (!pictogramId) {
+				const searchUrlEn = `https://api.arasaac.org/api/v1/pictograms/en/best-search/${encodeURIComponent(cleanWord)}`;
+				try {
+					const responseEn = await fetch(searchUrlEn);
+					if (responseEn.ok) {
+						const dataEn = await responseEn.json();
+						if (dataEn && dataEn.length > 0) {
+							pictogramId = dataEn[0]._id;
+							console.log('Found pictogram ID from English:', pictogramId);
+						}
+					}
+				} catch (e) {
+					console.log('English search also failed');
 				}
 			}
 			
 			// If we found a pictogram ID, display it
 			if (pictogramId) {
-				// The ARASAAC API endpoint works without CORS for direct image access
-				// Format: https://api.arasaac.org/v1/pictograms/{id}?download=false
-				const imgUrl = `https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true`;
-				console.log('Loading pictogram for "' + word + '" with ID:', pictogramId);
+				// According to ARASAAC docs, the URL format is:
+				// https://static.arasaac.org/pictograms/{id}/{id}_300.png for 300px version
+				// or https://api.arasaac.org/api/v1/pictograms/{id}?download=false for API version
 				
-				// Directly set the image - the API endpoint serves images directly
-				pictogramEl.innerHTML = `
-					<img src="${imgUrl}" 
-						 alt="${word}" 
-						 style="max-width: 150px; height: auto; border-radius: 8px; border: 2px solid #1c2432;"
-						 onerror="this.parentElement.innerHTML='<div style=\\'color: var(--muted); font-size: 12px;\\'>Could not load image for ${word}</div>';">
-				`;
+				const imgUrl = `https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_300.png`;
+				console.log('Loading image from:', imgUrl);
 				
-			} else {
-				// Try using emojis as fallback for common words
-				const emojiMap = {
-					'gato': '🐱',
-					'perro': '🐕',
-					'ratón': '🐭',
-					'raton': '🐭',
-					'elefante': '🐘',
-					'casa': '🏠',
-					'castillo': '🏰',
-					'sol': '☀️',
-					'luna': '🌙',
-					'estrella': '⭐',
-					'árbol': '🌳',
-					'arbol': '🌳',
-					'agua': '💧',
-					'fuego': '🔥',
-					'coche': '🚗',
-					'libro': '📚',
-					'pelota': '⚽',
-					'manzana': '🍎',
-					'plátano': '🍌',
-					'platano': '🍌',
-					'uno': '1️⃣',
-					'dos': '2️⃣',
-					'tres': '3️⃣',
-					'cuatro': '4️⃣',
-					'cinco': '5️⃣'
+				// Create image with error handling
+				const img = new Image();
+				img.crossOrigin = "anonymous"; // Handle CORS
+				
+				img.onload = function() {
+					pictogramEl.innerHTML = `
+						<img src="${imgUrl}" 
+							 alt="${word}" 
+							 style="max-width: 150px; height: auto; border-radius: 8px; border: 2px solid #1c2432;">
+						<div style="color: var(--muted); font-size: 10px; margin-top: 4px;">ID: ${pictogramId}</div>
+					`;
 				};
 				
-				const emoji = emojiMap[cleanWord];
-				if (emoji) {
+				img.onerror = function() {
+					console.log('Static URL failed, trying API endpoint...');
+					// Try the API endpoint as fallback
+					const apiUrl = `https://api.arasaac.org/api/v1/pictograms/${pictogramId}?download=false&color=true&skin=white`;
 					pictogramEl.innerHTML = `
-						<div style="font-size: 80px; line-height: 1;">${emoji}</div>
-						<div style="color: var(--muted); font-size: 10px; margin-top: 8px;">Emoji placeholder</div>
+						<img src="${apiUrl}" 
+							 alt="${word}" 
+							 style="max-width: 150px; height: auto; border-radius: 8px; border: 2px solid #1c2432;"
+							 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'color: var(--muted); font-size: 12px;\\'>Image failed to load</div>';">
+						<div style="color: var(--muted); font-size: 10px; margin-top: 4px;">ID: ${pictogramId}</div>
 					`;
-				} else {
-					pictogramEl.innerHTML = `
-						<div style="color: var(--muted); font-size: 12px;">
-							No pictogram for "${word}"<br>
-							<span style="font-size: 10px;">Using text only</span>
-						</div>
-					`;
-				}
+				};
+				
+				img.src = imgUrl;
+			} else {
+				// No pictogram found
+				pictogramEl.innerHTML = `
+					<div style="color: var(--muted); font-size: 12px;">
+						No pictogram found for "${word}"<br>
+						<span style="font-size: 10px;">Try adding more common words</span>
+					</div>
+				`;
 			}
 			
 		} catch (error) {
-			console.error('Error loading pictogram:', error);
+			console.error('Error fetching pictogram:', error);
 			pictogramEl.innerHTML = '<div style="color: var(--muted); font-size: 12px;">Could not load pictogram</div>';
 		}
 	}
