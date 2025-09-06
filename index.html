@@ -139,6 +139,9 @@ perro
 tres</textarea>
 			<div class="row">
 				<button id="saveWords">Save list</button>
+				<button id="downloadWords">Download list</button>
+				<button id="uploadBtn">Load from file</button>
+				<input type="file" id="fileInput" accept=".txt" style="display:none;">
 				<span class="small">Saved to your browser.</span>
 			</div>
 		</div>
@@ -160,6 +163,9 @@ tres</textarea>
 	const modeSel = document.getElementById('mode');
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
+	const downloadWordsBtn = document.getElementById('downloadWords');
+	const uploadBtn = document.getElementById('uploadBtn');
+	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
 	const cameraRadios = document.querySelectorAll('input[name="camera"]');
@@ -335,15 +341,11 @@ tres</textarea>
 					statusEl.className = "status ok";
 					celebrate();
 					
-					// Stop scanning after correct match
-					stop();
-					
-					// Automatically show next word after a delay
+					// Move to next word after a short delay, keep camera running
 					setTimeout(() => {
 						setWord(randomWord());
-						statusEl.textContent = "Press Start to scan for the new word";
-						statusEl.className = "status";
-					}, 1500);
+						lastText = null; // Reset so we can scan the same QR for a different word
+					}, 1000);
 				} else {
 					statusEl.textContent = "✖ Not matched: " + decodedText;
 					statusEl.className = "status bad";
