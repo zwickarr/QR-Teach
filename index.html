@@ -376,6 +376,8 @@ tres</textarea>
 			try { 
 				if (html5QrCode) {
 					await html5QrCode.stop(); 
+					// Small delay to ensure cleanup
+					await new Promise(resolve => setTimeout(resolve, 100));
 					await html5QrCode.clear();
 				}
 			} catch(e) {
@@ -386,6 +388,12 @@ tres</textarea>
 			stopBtn.disabled = true; 
 			nextBtn.disabled = false;
 			lastText = null; // Reset last scanned text
+			
+			// Clear the reader div to remove any lingering elements
+			const reader = document.getElementById('reader');
+			if (reader) {
+				reader.innerHTML = '';
+			}
 		}
 
 		startBtn.addEventListener('click', start);
