@@ -378,7 +378,12 @@
 					</div>
 				</div>
 			</div>
-			<div id="currentWord" class="word" aria-live="polite">gato</div>
+			
+            <div class="row" style="margin-top:6px; align-items:center;">
+                <label for="studentName" class="tag" title="Used in celebration messages">Student name</label>
+                <input id="studentName" type="text" placeholder="e.g., John" style="padding:10px 14px;border-radius:10px;border:1px solid #2a3548;min-width:180px;">
+            </div>
+<div id="currentWord" class="word" aria-live="polite">gato</div>
 			<div id="pictogram"></div>
 			<div id="stars"></div>
 			<div class="status" id="status"></div>
@@ -448,6 +453,31 @@ tres</textarea>
 	<footer>
 		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
 	</footer>
+
+<div id="debugPanel" style="position:fixed; left:12px; bottom:12px; z-index:9998; font-size:12px;">
+  <div style="background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:10px 12px; min-width:260px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
+    <div style="font-weight:700; font-size:12px; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+      <span>🧪 Debug</span>
+      <button id="dbgToggle" title="Hide panel" style="margin-left:auto; background:#22314a; color:#cde3ff; border-radius:6px; padding:2px 6px; border:1px solid #2b3a56; cursor:pointer;">Hide</button>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:6px;">
+      <button id="dbgCorrect1"  style="background:#1f5f2e; border-radius:8px; padding:6px;">✅ +1</button>
+      <button id="dbgWrong"     style="background:#6b2a2a; border-radius:8px; padding:6px;">❌ Wrong</button>
+      <button id="dbgReset"     style="background:#334155; border-radius:8px; padding:6px;">🔄 Reset</button>
+
+      <button id="dbgC3" style="background:#315238; border-radius:8px; padding:6px;">✅ x3</button>
+      <button id="dbgC5" style="background:#315238; border-radius:8px; padding:6px;">✅ x5</button>
+      <button id="dbgC10" style="background:#315238; border-radius:8px; padding:6px;">✅ x10</button>
+
+      <button id="dbgShow3"  style="background:#4b5563; border-radius:8px; padding:6px;">🎉 3</button>
+      <button id="dbgShow5"  style="background:#4b5563; border-radius:8px; padding:6px;">🎉 5</button>
+      <button id="dbgShow10" style="background:#4b5563; border-radius:8px; padding:6px;">🎉 10</button>
+
+      <button id="dbgShow20" style="grid-column: span 3; background:#4b5563; border-radius:8px; padding:6px;">🎉 20</button>
+    </div>
+  </div>
+</div>
+
 
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -523,6 +553,7 @@ exportPinnedBtn?.addEventListener('click', ()=>{
 	const starsEl = document.getElementById('stars');
 	const pictogramEl = document.getElementById('pictogram');
 	const loadingMsg = document.getElementById('loadingMsg');
+    const studentNameInput = document.getElementById('studentName');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
@@ -560,7 +591,74 @@ function setPinned(word, id) {
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
-	// Sound generation
+	
+/* DEBUG PANEL WIRES */
+(function(){
+  const byId = (id)=>document.getElementById(id);
+  const btn = {
+    toggle: byId('dbgToggle'),
+    c1: byId('dbgCorrect1'),
+    wrong: byId('dbgWrong'),
+    reset: byId('dbgReset'),
+    c3: byId('dbgC3'),
+    c5: byId('dbgC5'),
+    c10: byId('dbgC10'),
+    s3: byId('dbgShow3'),
+    s5: byId('dbgShow5'),
+    s10: byId('dbgShow10'),
+    s20: byId('dbgShow20'),
+  };
+  const panel = document.getElementById('debugPanel');
+
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        try{ updateScore(true); }catch(e){ console.error(e); }
+        await new Promise(r=>setTimeout(r, 120)); // small delay to see effects
+      }
+    })();
+  }
+
+  function resetAll(){
+    try {
+      if (typeof streak !== 'undefined') { streak = 0; }
+      if (typeof usedWords !== 'undefined') { usedWords.length = 0; }
+      if (typeof correctWords !== 'undefined') { correctWords.length = 0; }
+      // Try to reset UI counters if present
+      if (typeof updateScore === 'function') { updateScore(false); } // a "wrong" to reflect reset
+      toast('Debug: reset streak and totals');
+    } catch(e) { console.error(e); }
+  }
+
+  btn.toggle && btn.toggle.addEventListener('click', ()=>{
+    const box = panel.querySelector('div');
+    const vis = box.style.display !== 'none';
+    box.style.display = vis ? 'none' : 'block';
+    btn.toggle.textContent = vis ? 'Show' : 'Hide';
+  });
+  btn.c1   && btn.c1.addEventListener('click', ()=> clicks(1));
+  btn.wrong&& btn.wrong.addEventListener('click', ()=> { try{ updateScore(false); }catch(e){} });
+  btn.reset&& btn.reset.addEventListener('click', resetAll);
+  btn.c3   && btn.c3.addEventListener('click', ()=> clicks(3));
+  btn.c5   && btn.c5.addEventListener('click', ()=> clicks(5));
+  btn.c10  && btn.c10.addEventListener('click', ()=> clicks(10));
+
+  btn.s3   && btn.s3.addEventListener('click', ()=> { try{ showMilestoneOverlay(3); celebrate && celebrate(); }catch(e){} });
+  btn.s5   && btn.s5.addEventListener('click', ()=> { try{ showMilestoneOverlay(5); celebrate && celebrate(); }catch(e){} });
+  btn.s10  && btn.s10.addEventListener('click', ()=> { try{ showMilestoneOverlay(10); celebrate && celebrate(); }catch(e){} });
+  btn.s20  && btn.s20.addEventListener('click', ()=> { try{ showMilestoneOverlay(20); celebrate && celebrate(); }catch(e){} });
+})();
+
+// Student name persistence
+    const LS_STUDENT = 'qr-word-game:student-name';
+    try {
+        const savedStudent = localStorage.getItem(LS_STUDENT);
+        if (studentNameInput && savedStudent) studentNameInput.value = savedStudent;
+        studentNameInput?.addEventListener('input', ()=> {
+            try { localStorage.setItem(LS_STUDENT, studentNameInput.value || ''); } catch(e){}
+        });
+    } catch(e) {}
+    // Sound generation
 	function initAudio() {
 		if (!audioContext) {
 			audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -1023,7 +1121,101 @@ async function fetchPictogramFromAPI(word) {
 		}
 	}
 	
-	function showBigNumber(num) {
+
+
+function showMilestoneOverlay(stars) {
+    // Name + message
+    const getName = () => {
+        try {
+            const s = (typeof studentNameInput !== 'undefined' && studentNameInput) ? studentNameInput.value : (localStorage.getItem('qr-word-game:student-name')||'');
+            return (s || '').trim();
+        } catch(e){ return ''; }
+    };
+    const name = getName();
+    const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+
+    // Overlay shell
+    const overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+        position:'fixed', inset:'0', background:'rgba(0,0,0,.55)',
+        display:'flex', alignItems:'center', justifyContent:'center', zIndex:'10001'
+    });
+
+    // Card
+    const card = document.createElement('div');
+    Object.assign(card.style, {
+        background:'#1e3a5f', color:'#d1e9ff', borderRadius:'18px',
+        padding:'24px 20px', width:'min(92%, 780px)',
+        boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #e2e8f0',
+        textAlign:'center', overflow:'hidden'
+    });
+
+    // Stars wrapper (two grid rows, 10 columns each)
+    const starsWrap = document.createElement('div');
+    Object.assign(starsWrap.style, {display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px'});
+
+    function makeRow(count){
+        const row = document.createElement('div');
+        Object.assign(row.style, {
+            display:'grid',
+            gridTemplateColumns:'repeat(10, 1fr)',
+            alignItems:'center',
+            justifyItems:'center'
+        });
+        for (let i=0;i<count;i++){
+            const s = document.createElement('span');
+            s.textContent = '⭐';
+            row.appendChild(s);
+        }
+        return row;
+    }
+    const topRow = makeRow(Math.min(stars, 10));
+    starsWrap.appendChild(topRow);
+    let bottomRow = null;
+    if (stars > 10){
+        bottomRow = makeRow(stars - 10);
+        starsWrap.appendChild(bottomRow);
+    }
+
+    // Title + message
+    const titleEl = document.createElement('div');
+    Object.assign(titleEl.style, {fontSize:'72px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0'});
+    titleEl.textContent = String(stars) + ' STARS!';
+
+    const msgEl = document.createElement('div');
+    Object.assign(msgEl.style, {fontSize:'28px', fontWeight:'700', opacity:'.9', marginTop:'6px'});
+    msgEl.textContent = shout;
+
+    // Compose
+    card.appendChild(starsWrap);
+    card.appendChild(titleEl);
+    card.appendChild(msgEl);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Responsive star sizing: size to fit 10 per row
+    const sizeStars = () => {
+        const inner = card.clientWidth - 40; // card padding approx
+        const target = Math.max(24, Math.min(56, Math.floor(inner/10) - 4));
+        [topRow, bottomRow].forEach(row => {
+            if (!row) return;
+            row.querySelectorAll('span').forEach(el => { el.style.fontSize = target + 'px'; lineHeight = '1'; });
+        });
+    };
+    sizeStars();
+    window.addEventListener('resize', sizeStars, { once:true });
+
+    // Milestone sound
+    try {
+        const a = new Audio(stars === 20
+            ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
+            : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac');
+        a.play().catch(()=>{});
+    } catch(e) {}
+
+    setTimeout(()=>overlay.remove(), 3400);
+}
+function showBigNumber(num) {
 		const el = document.createElement('div');
 		el.id = 'bigMilestone';
 		el.textContent = num;
@@ -1055,17 +1247,17 @@ async function fetchPictogramFromAPI(word) {
 			if (streak === 3) {
 				toast("🎉 3 in a row! Great job!");
 				celebrate();
-				showBigNumber(3);
+				showMilestoneOverlay(3);
 			} else if (streak === 10) {
 				toast("🏆 10 STREAK! AMAZING!");
 				megaCelebrate();
 				playMilestoneSound();
-				showBigNumber(10);
+				showMilestoneOverlay(10);
 			} else if (streak === 20) {
 				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
 				megaCelebrate();
 				playMilestoneSound();
-				showBigNumber(20);
+				showMilestoneOverlay(20);
 			} else if (streak % 5 === 0 && streak > 0) {
 				toast(`🔥 ${streak} streak! Keep going!`);
 				celebrate();
