@@ -362,24 +362,23 @@
 		<div class="card">
 			<div class="row" style="justify-content:space-between;">
 				<div class="row">
-					<button id="startBtn">📷 Start</button>
-					<button id="stopBtn" disabled>📷 Stop</button>
+					<button id="startBtn">Start camera</button>
+					<button id="stopBtn" disabled>Stop</button>
 					<button id="nextBtn">New word</button>
 					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
+					<select id="mode">
+						<option value="exact" selected>Exact match</option>
+						<option value="loose">Ignore accents & case</option>
+					</select>
 					<div class="toggle" title="Display mode">
 						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
 						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
 					</div>
 				</div>
 			</div>
-			
-			<div class="row" style="margin-top:6px; align-items:center;">
-				<label for="studentName" class="tag" title="Used in celebration messages">Student name:</label>
-				<input id="studentName" type="text" placeholder="e.g., John" style="padding:8px 14px;border-radius:8px;border:1px solid #2a3548;min-width:160px;margin-left:8px;">
-			</div>
-<div id="currentWord" class="word" aria-live="polite">gato</div>
+			<div id="currentWord" class="word" aria-live="polite">gato</div>
 			<div id="pictogram"></div>
 			<div id="stars"></div>
 			<div class="status" id="status"></div>
@@ -420,19 +419,10 @@ castillo
 elefante
 perro
 tres</textarea>
-                <div class="row" style="margin-top: 10px; align-items: center;">
-                    <span class="tag" title="How words are matched">Matching mode</span>
-                    <select id="mode">
-  <option value="exact">Exact match</option>
-  <option value="loose" selected>Ignore accents & case</option>
-</select>
-                </div>
-
 				<div class="row" style="margin-top: 10px;">
-					<button id="clearWords" onclick="clearWordsNow()" style="background:#e53e3e;">❌ Clear list</button>
-					<button id="saveWords">💾 Save list</button>
-					<button id="downloadWords">⬇️ Download list</button>
-					<button id="uploadBtn">📂 Load from file</button>
+					<button id="saveWords">Save list</button>
+					<button id="downloadWords">Download list</button>
+					<button id="uploadBtn">Load from file</button>
 					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
 					<input type="file" id="fileInput" accept=".txt" style="display:none;">
 				</div>
@@ -456,88 +446,15 @@ tres</textarea>
 		</div>
 	</main>
 	<footer>
-		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org (served via local cache)</span>
+		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
 	</footer>
 
-	<div id="netStatusPanel" style="position:fixed; right:12px; bottom:12px; z-index:9999; font-size:12px;">
-		<div style="background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:10px 12px; min-width:220px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
-			<div style="font-weight:700; font-size:12px; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-				<span>📡 Network status</span>
-				<button id="nsToggle" title="Hide panel" style="margin-left:auto; background:#22314a; color:#cde3ff; border-radius:6px; padding:2px 6px; border:1px solid #2b3a56; cursor:pointer;">Hide</button>
-			</div>
-			<div>Bestsearch: <span id="nsBest" style="font-weight:700;">—</span></div>
-			<div>Images: <span id="nsImg" style="font-weight:700;">—</span></div>
-			<div id="nsLast" style="margin-top:6px; opacity:.9;">Last: —</div>
-		</div>
-	</div>
-
-
 	<!-- Load confetti for celebrations -->
-	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
-// =======================
-// Student Name Persistence
-// =======================
-const studentNameInput = document.getElementById('studentName');
-const LS_STUDENT = "qr-word-game:student-name";
-try {
-    const savedStudent = localStorage.getItem(LS_STUDENT);
-    if (studentNameInput && savedStudent) studentNameInput.value = savedStudent;
-    studentNameInput?.addEventListener('input', () => {
-        localStorage.setItem(LS_STUDENT, studentNameInput.value || '');
-    });
-} catch(e) {
-    console.warn("Student name localStorage error", e);
-}
-
-// =======================
-// Clear List Function
-// =======================
-window.clearWordsNow = function(){
-	wordListTA.value = '';
-	localStorage.setItem(LS_KEY, '');
-	words = loadWords();
-	usedWords = [];
-	setWord(randomWord());
-	toast('Cleared all words');
-}
-    toast('Cleared all words');
-}
-
-// =======================
-// Celebration Overlay
-// =======================
-function showMilestoneOverlay(stars) {
-    const name = (studentNameInput && studentNameInput.value.trim()) || (localStorage.getItem(LS_STUDENT)||'').trim();
-    const shout = name ? `KEEP GOING, ${name.toUpperCase()}!` : 'KEEP GOING!';
-    const overlay = document.createElement('div');
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:10001";
-    const card = document.createElement('div');
-    card.style.cssText = "background:#1e3a5f;color:#d1e9ff;border-radius:18px;padding:24px 20px;width:min(92%,680px);box-shadow:0 20px 70px rgba(0,0,0,.6);border:6px solid #e2e8f0;text-align:center";
-    card.innerHTML = `<div style="font-size:56px;line-height:1;margin-bottom:8px;">${"⭐".repeat(stars)}</div>
-                      <div style="font-size:72px;font-weight:800;letter-spacing:1px;margin:6px 0;">${stars} STARS!</div>
-                      <div style="font-size:28px;font-weight:700;opacity:.9;margin-top:6px;">${shout}</div>`;
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-    setTimeout(()=>overlay.remove(), 3400);
-}
-
-</script>
+	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 	<!-- Load jsQR as fallback QR reader -->
 	<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
 	<script>
-	
-	function clearWordsNow(){
-		try {
-			wordListTA.value = '';
-			localStorage.setItem(LS_KEY, '');
-			words = loadWords();
-			usedWords = [];
-			setWord(randomWord());
-			toast('Cleared all words');
-		} catch(e) { console.error('Clear list failed:', e); }
-	}
-
 	// Theme management
 	const themeBtn = document.getElementById('themeBtn');
 	const body = document.body;
@@ -565,6 +482,35 @@ function showMilestoneOverlay(stars) {
 	const downloadWordsBtn = document.getElementById('downloadWords');
 	const uploadBtn = document.getElementById('uploadBtn');
 	const loadArasaacBtn = document.getElementById('loadArasaacBtn');
+
+// Pin IDs for current list (batch) + export
+const pinBtn = document.getElementById('pinIdsBtn');
+const exportPinnedBtn = document.getElementById('exportPinnedBtn');
+pinBtn?.addEventListener('click', async ()=>{
+	try{
+		pinBtn.disabled = true;
+		__nsLog && __nsLog('Pinning IDs for current list...');
+		const list = loadWords();
+		let pinnedCount = 0;
+		for (const w of list){
+			if (!w) continue;
+			const id = await resolvePictogramId(w);
+			if (id){ setPinned(w, id); pinnedCount++; try{ await fetch(`https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${id}.png`);}catch(e){} }
+			await new Promise(r=>setTimeout(r, 150));
+		}
+		toast(`Pinned ${pinnedCount} IDs`);
+		__nsLog && __nsLog(`Pinned ${pinnedCount} IDs (and prewarmed cache)`);
+	} catch(e){ console.error(e); toast('Pinning failed'); }
+	finally { pinBtn.disabled = false; }
+});
+exportPinnedBtn?.addEventListener('click', ()=>{
+	try{
+		const blob = new Blob([JSON.stringify(pinnedIds, null, 2)], {type:'application/json'});
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a'); a.href=url; a.download='pinned-ids.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+	} catch(e){}
+});
+
 	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
@@ -586,7 +532,6 @@ function showMilestoneOverlay(stars) {
 	let scanning = false;
 	let score = 0, streak = 0;
 	let lastText = null;
-	let lastTextTime = 0; // timestamp for last decoded text
 	let scanInterval = null;
 	let barcodeDetector = null;
 	let isMuted = localStorage.getItem(LS_MUTED) === 'true';
@@ -594,6 +539,18 @@ function showMilestoneOverlay(stars) {
 	let correctWords = [];
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
 	let currentPictogramId = null;
+	
+// Pinned IDs (persisted)
+const LS_PINNED = 'qr-word-game:pinned-ids';
+let pinnedIds = {};
+try { pinnedIds = JSON.parse(localStorage.getItem(LS_PINNED) || '{}'); } catch(e) { pinnedIds = {}; }
+function setPinned(word, id) {
+	const w = (word||'').toLowerCase().trim();
+	if (!w || !id) return;
+	pinnedIds[w] = id;
+	try { localStorage.setItem(LS_PINNED, JSON.stringify(pinnedIds)); } catch(e) {}
+}
+
 	
 	// Initialize display mode
 	for (const r of displayRadios) {
@@ -603,30 +560,6 @@ function showMilestoneOverlay(stars) {
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
-	
-	// Network Status helpers
-	(function(){
-		const ns = { api: '—', img: '—', last: '—', visible: true };
-		const byId = id => document.getElementById(id);
-		function render() {
-			const b = byId('nsBest'), i = byId('nsImg'), l = byId('nsLast'), p = byId('netStatusPanel');
-			if (!b || !i || !l || !p) return;
-			b.textContent = ns.api;
-			i.textContent = ns.img;
-			l.textContent = 'Last: ' + ns.last;
-			p.style.display = ns.visible ? 'block' : 'none';
-		}
-		window.__nsSet = function(key, value) { ns[key] = value; render(); };
-		window.__nsLog = function(msg) { ns.last = msg; render(); };
-		window.__nsShow = function(v) { ns.visible = v; render(); };
-		window.addEventListener('DOMContentLoaded',()=>{
-			const t = document.getElementById('nsToggle');
-			if (t) t.addEventListener('click', ()=> { ns.visible = !ns.visible; t.textContent = ns.visible ? 'Hide' : 'Show'; render(); });
-			render();
-		});
-	})();
-
-
 	// Sound generation
 	function initAudio() {
 		if (!audioContext) {
@@ -671,16 +604,6 @@ function showMilestoneOverlay(stars) {
 		setTimeout(() => playSound(1047, 0.3), 300); // High C
 	}
 	
-	
-// Ensure default match mode to 'loose' on first load if no prior choice is stored.
-try {
-    if (!localStorage.getItem('qr-word-game:match-default-set')) {
-        const modeSelInit = document.getElementById('mode');
-        if (modeSelInit) modeSelInit.value = 'loose';
-        localStorage.setItem('qr-word-game:match-default-set','1');
-    }
-} catch(e) {}
-
 	muteBtn.addEventListener('click', () => {
 		isMuted = !isMuted;
 		muteBtn.textContent = isMuted ? '🔇' : '🔊';
@@ -741,18 +664,16 @@ try {
 				'cinco', 'rojo', 'azul', 'verde', 'amarillo', 'grande', 'pequeño',
 				'feliz', 'triste', 'caliente', 'frío', 'día', 'noche', 'amigo'
 			];
-const criticalFallback = ['niña','mamá','papá','árbol'];
-
 			
 			const validWords = [];
 			
 			// Use a proxy to avoid CORS issues
-			// Proxy removed; direct fetch used with graceful fallback
+			const proxyUrl = 'https://api.allorigins.win/raw?url=';
 			
 			for (const term of searchTerms) {
 				try {
 					const url = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(term)}`;
-					const response = await fetch(url, {mode:'cors'});
+					const response = await fetch(proxyUrl + encodeURIComponent(url));
 					
 					if (response.ok) {
 						const data = await response.json();
@@ -769,14 +690,6 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			}
 			
 			if (validWords.length > 0) {
-			// Merge fallback for missing words
-			if (validWords.length < searchTerms.length) {
-				const missing = searchTerms.filter(w => !validWords.includes(w));
-				console.warn('API call failed for some words:', missing);
-				validWords.push(...criticalFallback.filter(w => !validWords.includes(w)));
-				oast(`Some words failed (${missing.length}), added fallback words.`);
-			}
-
 				wordListTA.value = validWords.join('\n');
 				saveWords();
 				toast(`Loaded ${validWords.length} validated ARASAAC words!`);
@@ -907,15 +820,51 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 	let lastAPICall = 0;
 	const API_DELAY = 500; // Minimum 500ms between API calls
 	
-	async function fetchPictogramFromAPI(word) {
-		/* EARLY FALLBACK PICTOGRAM CHECK */
+	
+async function resolvePictogramId(word){
+	const w = (word||'').toLowerCase().trim();
+	const nd = w.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+	if (pinnedIds[w]) return pinnedIds[w];
+	if (pinnedIds[nd]) return pinnedIds[nd];
+	if (fallbackIds[w]) return fallbackIds[w];
+	if (fallbackIds[nd]) return fallbackIds[nd];
+	const workerBase = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev';
+	const workerURL = `${workerBase}/bestsearch?q=${encodeURIComponent(w)}`;
+	const workerURLAlt = `${workerBase}/bestsearch?q=${encodeURIComponent(nd)}`;
+	let response = null;
+	try { response = await fetch(workerURL, {mode:'cors'}); } catch(e) { response = null; }
+	if (!response || !response.ok) { try { response = await fetch(workerURLAlt, {mode:'cors'}); } catch(e) { response = null; } }
+	if (!response || !response.ok) {
+		const apiURL = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(w)}`;
+		const apiURLAlt = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(nd)}`;
+		try { response = await fetch(apiURL, {mode:'cors'}); } catch(e) { response = null; }
+		if (!response || !response.ok) { try { response = await fetch(apiURLAlt, {mode:'cors'}); } catch(e) { response = null; } }
+	}
+	if (response && response.ok) {
 		try {
-			const clean = word.toLowerCase().trim();
-			const nf = clean.normalize('NFD').replace(/\p{Diacritic}/gu,'');
-			if (fallbackIds[clean]) { displayPictogram(fallbackIds[clean], word); return; }
-			if (fallbackIds[nf]) { displayPictogram(fallbackIds[nf], word); return; }
-		} catch(e) {}
+			const items = await response.json();
+			if (Array.isArray(items) && items.length>0){
+				const top = items.slice(0,6);
+				for (const it of top){
+					const pid = it._id || it.id;
+					try {
+						const meta = await fetch(`https://api.arasaac.org/v1/pictograms/es/${pid}`, {mode:'cors'});
+						if (meta.ok){
+							const pdata = await meta.json();
+							const kws = (pdata.keywords||[]).map(k => (k.keyword||'').toLowerCase());
+							const kwsNd = kws.map(x=>x.normalize('NFD').replace(/\p{Diacritic}/gu,''));
+							if (kws.includes(w) || kwsNd.includes(nd)) return pid;
+						}
+					} catch(e){}
+				}
+				return top[0]._id || top[0].id;
+			}
+		} catch(e){}
+	}
+	return null;
+}
 
+async function fetchPictogramFromAPI(word) {
 		pictogramEl.innerHTML = '<div>Loading pictogram...</div>';
 		
 		try {
@@ -937,28 +886,24 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			lastAPICall = Date.now();
 			
 			// Try using a CORS proxy for the API call
-			// Proxy removed; direct fetch used with graceful fallback
-			const apiWorker = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord);
-const apiWorkerAlt = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
-let response = null;
-try { response = await fetch(apiWorker, {mode:'cors'}); window.__nsSet && __nsSet('api','Worker'); window.__nsLog && __nsLog('bestsearch via Worker'); } catch(e) { response = null; }
-if (!response || !response.ok) { try { response = await fetch(apiWorkerAlt, {mode:'cors'}); window.__nsSet && __nsSet('api','Worker'); window.__nsLog && __nsLog('bestsearch via Worker (no-diacritics)'); } catch(e) { response = null; } }
-if ((!response || !response.ok)) {
-  const apiUrl = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord);
-  const apiUrlAlt = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
-  try { response = await fetch(apiUrl, {mode:'cors'}); window.__nsSet && __nsSet('api','ARASAAC'); window.__nsLog && __nsLog('bestsearch via ARASAAC'); } catch(e) { response = null; }
-  if (!response || !response.ok) { try { response = await fetch(apiUrlAlt, {mode:'cors'}); window.__nsSet && __nsSet('api','ARASAAC'); window.__nsLog && __nsLog('bestsearch via ARASAAC (no-diacritics)'); } catch(e) { response = null; } }
-}
-if (response && response.ok) {
-  const items = await response.json();
-  if (items && items.length > 0) {
-    const pictogramId = items[0]._id || items[0].id;
-    pictogramCache.set(cleanWord, pictogramId);
-    displayPictogram(pictogramId, word);
-    return;
-  }
-}
-catch (e) {
+			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			const apiUrl = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord)}`;
+			
+			try {
+				const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
+				
+				if (response.ok) {
+					const items = await response.json();
+					
+					if (items && items.length > 0) {
+						// Use the first result
+						const pictogramId = items[0]._id || items[0].id;
+						pictogramCache.set(cleanWord, pictogramId);
+						displayPictogram(pictogramId, word);
+						return;
+					}
+				}
+			} catch (e) {
 				console.log('API call failed, using fallback');
 			}
 			
@@ -975,12 +920,12 @@ catch (e) {
 		currentPictogramId = pictogramId;
 		
 		// Direct PNG URL (500px version)
-		const imgUrl = `https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${pictogramId}.png`; window.__nsSet && __nsSet('img', 'Worker'); window.__nsLog && __nsLog(`image via Worker (${pictogramId})`);
+		const imgUrl = `https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png`;
 		
 		pictogramEl.innerHTML = `
 			<img src="${imgUrl}" 
 				 alt="${word}" 
-				 onerror="this.onerror=null; window.__nsSet && __nsSet('img','ARASAAC'); window.__nsLog && __nsLog('image fallback direct'); this.src='https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png';">
+				 onerror="this.onerror=null; this.src='https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true';">
 		`;
 		
 		console.log(`Loaded pictogram for "${word}" with ID: ${pictogramId}`);
@@ -1010,24 +955,6 @@ catch (e) {
 			'dos': 2628,
 			'cuatro': 2630,
 			'cinco': 2631
-		,
-			'niña': 17938
-		,
-			'nina': 17938
-		,
-			'niño': 16062
-		,
-			'nino': 16062
-		,
-			'mamá': 11830
-		,
-			'mama': 11830
-		,
-			'papá': 11829
-		,
-			'papa': 11829
-		,
-			'amigo': 25790
 		};
 		
 		const fallbackId = fallbackIds[cleanWord];
@@ -1121,31 +1048,20 @@ catch (e) {
 			score += 1; 
 			streak += 1;
 			correctWords.push(wordEl.textContent);
-			const totalCorrect = correctWords.length;
-			let overlayShown = false;
-			if ([3,5,10,20].includes(totalCorrect)) {
-				showMilestoneOverlay(totalCorrect);
-				overlayShown = true;
-			}
 			updateStars();
 			
 			playCorrectSound();
 			
-			if (!overlayShown && streak === 3) {
-				showMilestoneOverlay(3);
-				toast("🎉 3 STREAK! Great job!");
+			if (streak === 3) {
+				toast("🎉 3 in a row! Great job!");
 				celebrate();
-			} else if (!overlayShown && streak === 5) {
-				showMilestoneOverlay(5);
-				toast("🔥 5 STREAK! Keep going!");
-				celebrate();
-			} else if (!overlayShown && streak === 10) { showMilestoneOverlay(10);
-			
+				showBigNumber(3);
+			} else if (streak === 10) {
 				toast("🏆 10 STREAK! AMAZING!");
 				megaCelebrate();
 				playMilestoneSound();
 				showBigNumber(10);
-			} else if (!overlayShown && streak === 20) { showMilestoneOverlay(20);
+			} else if (streak === 20) {
 				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
 				megaCelebrate();
 				playMilestoneSound();
@@ -1193,12 +1109,7 @@ catch (e) {
 				}
 			}
 
-			if (decodedText) {
-			const nowTs = Date.now();
-			if (decodedText === lastText && (nowTs - lastTextTime) < 1200) { return; }
-			lastText = decodedText;
-			lastTextTime = nowTs;
-			
+			if (decodedText && decodedText !== lastText) {
 				lastText = decodedText;
 				const currentWord = wordEl.textContent;
 				const ok = normalize(decodedText) === normalize(currentWord);
