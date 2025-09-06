@@ -15,8 +15,10 @@
 		header h1 { margin: 0; font-size: 18px; letter-spacing: .4px; }
 		main { padding: 14px; display: grid; gap: 12px; align-content: start; }
 		.card { background: #111722; border: 1px solid #1c2432; border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
-		button, select { background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
-			padding: 10px 14px; font-size: 16px; cursor: pointer; }
+		button, select, .pill {
+			background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
+			padding: 10px 14px; font-size: 16px; cursor: pointer;
+		}
 		button:active { transform: translateY(1px); }
 		.word { font-size: clamp(28px, 7vw, 60px); text-align: center; font-weight: 800; letter-spacing: .8px;
 			padding: 12px 10px; border-radius: 12px; background: #0f1520; border: 1px dashed #25324a; }
@@ -27,27 +29,37 @@
 		video { width: 100%; height: 100%; object-fit: cover; }
 		canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 		.small { color: var(--muted); font-size: 12px; }
-		.row { display: flex; gap: 8px; flex-wrap: wrap; }
+		.row { display: flex; gap: 8px; flex-wrap: wrap; align-items:center; }
 		.tag { font-size: 12px; color: var(--muted); background:#0d1420; border:1px solid #1f2a3d; padding:6px 8px; border-radius:999px;}
-		.selects { display:flex; gap:8px; align-items:center; }
+		.selects { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
 		#refreshCams { padding-inline: 10px; }
+		.toggle { display:flex; gap:6px; background:#0d1420; border:1px solid #1f2a3d; padding:6px; border-radius:999px; }
+		.toggle label { padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none; }
+		.toggle input { display:none; }
+		.toggle input:checked + span { background:#1a2230; border:1px solid #2a3548; }
 	</style>
 </head>
 <body>
 	<header><h1>QR Word Match</h1></header>
 	<main>
 		<div class="card">
-			<div class="row" style="align-items:center; justify-content:space-between;">
+			<div class="row" style="justify-content:space-between;">
 				<div class="row">
 					<button id="startBtn">Start camera</button>
 					<button id="stopBtn" disabled>Stop</button>
 					<button id="nextBtn">New word</button>
 				</div>
 				<div class="selects">
+					<!-- Works when device IDs are available -->
 					<select id="cameraSel" title="Choose camera">
 						<option value="">(choose camera)</option>
 					</select>
 					<button id="refreshCams" type="button" title="Refresh camera list">↻</button>
+					<!-- Always works: explicit facingMode toggle -->
+					<div class="toggle" title="Force front/back camera">
+						<label><input type="radio" name="face" value="environment" checked><span>Back</span></label>
+						<label><input type="radio" name="face" value="user"><span>Front</span></label>
+					</div>
 					<select id="mode">
 						<option value="exact" selected>Exact match</option>
 						<option value="loose">Ignore accents & case</option>
@@ -66,7 +78,7 @@
 				<div class="tag" id="camInfo">Cameras: ?</div>
 			</div>
 			<div id="err" class="small" style="color:#ff8c8c;"></div>
-			<p class="small">Tip: The QR code should contain exactly the word you want the child to read (any language). Works best on HTTPS.</p>
+			<p class="small">Tip: On iOS, camera names show up only after you grant access once. If the list is empty, use the Front/Back toggle.</p>
 		</div>
 
 		<div class="card">
@@ -100,6 +112,7 @@ tres</textarea>
 	const streakTag = document.getElementById('streakTag');
 	const cameraSel = document.getElementById('cameraSel');
 	const refreshBtn = document.getElementById('refreshCams');
+	const faceRadios = document.querySelectorAll('input[name="face"]');
 	const camInfo = document.getElementById('camInfo');
 	const errEl = document.getElementById('err');
 	const video = document.getElementById('video');
@@ -109,6 +122,7 @@ tres</textarea>
 	// --- State
 	const LS_KEY = "qr-word-game:list";
 	const LS_CAM = "qr-word-game:camera-id";
+	const LS_FACE = "qr-word-game:facing";
 	let words = loadWords();
 	let score = 0, streak = 0;
 	let scanning = false;
@@ -148,7 +162,6 @@ tres</textarea>
 	}
 
 	function celebrate(){
-		// lightweight confetti without external libs
 		const bursts = 40;
 		for (let i=0;i<bursts;i++) {
 			const d = document.createElement('div');
@@ -173,7 +186,16 @@ tres</textarea>
 		return s.includes("back") || s.includes("rear") || s.includes("environment") || s.includes("traseira");
 	}
 
-	// Robust camera enumeration: supports pre-permission iOS by creating virtual options
+	function getFacing() {
+		const saved = localStorage.getItem(LS_FACE);
+		if (saved) {
+			for (const r of faceRadios) if (r.value === saved) r.checked = true;
+		}
+		const r = Array.from(faceRadios).find(r => r.checked);
+		return r ? r.value : "environment";
+	}
+
+	// Robust camera enumeration with virtual fallback
 	async function enumerateCameras() {
 		try {
 			const devices = await navigator.mediaDevices.enumerateDevices();
@@ -188,39 +210,20 @@ tres</textarea>
 					opt.textContent = c.label || `Camera ${i + 1}`;
 					cameraSel.appendChild(opt);
 				}
-				// prefer saved deviceId
 				const saved = localStorage.getItem(LS_CAM);
 				if (saved && [...cameraSel.options].some(o => o.value === saved)) {
 					cameraSel.value = saved;
 				} else {
-					// default to back if we can guess
 					const backIdx = [...cameraSel.options].findIndex(o => /\\b(back|rear|environment)\\b/i.test(o.textContent));
 					cameraSel.selectedIndex = backIdx >= 0 ? backIdx : 0;
 				}
 			} else {
-				// Pre-permission iOS path: provide virtual facingMode options
-				cameraSel.innerHTML = "";
-				const back = document.createElement("option");
-				back.value = "facing:environment";
-				back.textContent = "Back camera";
-				const front = document.createElement("option");
-				front.value = "facing:user";
-				front.textContent = "Front camera";
-				cameraSel.appendChild(back);
-				cameraSel.appendChild(front);
-				cameraSel.value = "facing:environment";
+				// keep placeholder; user will use Front/Back toggle
+				cameraSel.innerHTML = "<option value=''> (choose camera) </option>";
 			}
 			camInfo.textContent = "Cameras: " + vids.length;
 		} catch (e) {
-			// enumerateDevices failed: still provide virtual choices
-			cameraSel.innerHTML = "";
-			["environment","user"].forEach(f => {
-				const opt = document.createElement("option");
-				opt.value = "facing:" + f;
-				opt.textContent = f === "environment" ? "Back camera" : "Front camera";
-				cameraSel.appendChild(opt);
-			});
-			cameraSel.value = "facing:environment";
+			cameraSel.innerHTML = "<option value=''> (choose camera) </option>";
 			camInfo.textContent = "Cameras: ?";
 		}
 	}
@@ -228,40 +231,34 @@ tres</textarea>
 	async function start(){
 		if (scanning) return;
 
-		// Create detector if supported
 		if ('BarcodeDetector' in window) {
-			try {
-				detector = new BarcodeDetector({ formats: ['qr_code'] });
-			} catch(e){
-				errEl.textContent = "BarcodeDetector init failed: " + e.message;
-			}
+			try { detector = new BarcodeDetector({ formats: ['qr_code'] }); }
+			catch(e){ errEl.textContent = "BarcodeDetector init failed: " + e.message; }
 		} else {
 			errEl.textContent = "BarcodeDetector not supported in this browser.";
 		}
 
-		// pick camera (populate if empty; iOS labels appear after permission)
 		if (!cameraSel.options.length) { await enumerateCameras(); }
 
 		let constraints;
 		const val = cameraSel.value;
-		if (val && val.startsWith("facing:")) {
-			const mode = val.slice("facing:".length); // "environment" or "user"
-			constraints = { audio: false, video: { facingMode: { exact: mode } } };
-		} else if (val) {
+		const face = getFacing();
+		if (val) {
+			// try deviceId first (if available)
 			constraints = { audio: false, video: { deviceId: { exact: val } } };
 		} else {
-			// last resort default to back camera
-			constraints = { audio: false, video: { facingMode: { ideal: "environment" } } };
+			// no deviceId → use facingMode
+			constraints = { audio: false, video: { facingMode: { exact: face } } };
 		}
 
 		try {
 			stream = await navigator.mediaDevices.getUserMedia(constraints);
 		} catch(e){
-			// If deviceId failed (hidden/invalid), fall back to facingMode
-			if (val && !val.startsWith("facing:")) {
+			// fallback: if deviceId failed, try facingMode
+			if (val) {
 				try {
-					stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" } } });
-					cameraSel.value = "facing:environment";
+					stream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode: { exact: face } } });
+					cameraSel.value = "";
 				} catch (e2) {
 					errEl.textContent = "getUserMedia error: " + e2.message;
 					return;
@@ -272,30 +269,30 @@ tres</textarea>
 			}
 		}
 
-		// save selected device if available
+		// remember face selection
+		localStorage.setItem(LS_FACE, face);
+
+		// remember deviceId when available
 		try {
-			const track = stream.getVideoTracks()[0];
-			const settings = track?.getSettings?.() || {};
+			const settings = stream.getVideoTracks()[0]?.getSettings?.() || {};
 			if (settings.deviceId) localStorage.setItem(LS_CAM, settings.deviceId);
 		} catch {}
 
 		video.srcObject = stream;
 		await video.play();
 
-		// size canvas to viewer
 		function resize(){
 			const r = document.getElementById('reader').getBoundingClientRect();
 			overlay.width = r.width * devicePixelRatio;
 			overlay.height = r.height * devicePixelRatio;
 			ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
 		}
-		resize();
-		addEventListener('resize', resize);
+		resize(); addEventListener('resize', resize);
 
 		scanning = true;
 		startBtn.disabled = true; stopBtn.disabled = false; nextBtn.disabled = true;
 
-		// After permission, iOS now reveals labels/IDs—refresh list
+		// After permission, iOS can reveal labels/IDs—refresh
 		setTimeout(enumerateCameras, 200);
 
 		scanLoop();
@@ -304,10 +301,7 @@ tres</textarea>
 	function stop(){
 		if (!scanning) return;
 		cancelAnimationFrame(rafId);
-		if (stream) {
-			for (const t of stream.getTracks()) t.stop();
-			stream = null;
-		}
+		if (stream) { for (const t of stream.getTracks()) t.stop(); stream = null; }
 		scanning = false;
 		startBtn.disabled = false; stopBtn.disabled = true; nextBtn.disabled = false;
 		ctx.clearRect(0,0,overlay.width, overlay.height);
@@ -364,6 +358,10 @@ tres</textarea>
 		if (scanning) { stop(); start(); }
 	});
 	refreshBtn.addEventListener('click', enumerateCameras);
+	faceRadios.forEach(r => r.addEventListener('change', () => {
+		localStorage.setItem(LS_FACE, getFacing());
+		if (scanning) { stop(); start(); }
+	}));
 
 	function toast(msg){
 		const el = document.createElement('div');
@@ -379,6 +377,8 @@ tres</textarea>
 
 	// Initial setup
 	enumerateCameras();
+	// Restore facing selection
+	getFacing();
 
 	// Keep screen awake on supported browsers
 	if ("wakeLock" in navigator) {
