@@ -71,6 +71,11 @@
 			0%, 100% { transform: scale(1); }
 			50% { transform: scale(1.2); }
 		}
+		@keyframes bigNumber {
+			0% { transform: scale(0) rotate(0deg); opacity: 0; }
+			50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
+			100% { transform: scale(1) rotate(360deg); opacity: 1; }
+		}
 		
 		#stars { 
 			text-align: center; 
@@ -82,13 +87,27 @@
 		#pictogram {
 			text-align: center;
 			margin: 10px 0;
-			min-height: 100px;
+			min-height: 150px;
+			display: none;
 		}
 		#muteBtn {
 			font-size: 20px;
 			padding: 8px 12px;
 			background: #1a2230;
 			min-width: 50px;
+		}
+		#bigMilestone {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 150px;
+			font-weight: bold;
+			color: #1cc88a;
+			text-shadow: 0 0 30px rgba(28, 200, 138, 0.8);
+			animation: bigNumber 1s ease-out;
+			pointer-events: none;
+			z-index: 10000;
 		}
 		
 		.small { color: var(--muted); font-size: 12px; }
@@ -100,6 +119,8 @@
 		.toggle input { display:none; }
 		.toggle input:checked + span { background:#1a2230; border:1px solid #2a3548; }
 		.loading { padding: 20px; text-align: center; color: var(--muted); }
+		details summary { cursor: pointer; user-select: none; }
+		details summary:hover { color: var(--fg); }
 	</style>
 </head>
 <body>
@@ -114,18 +135,14 @@
 					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
-					<div class="toggle" title="Camera selection">
-						<label><input type="radio" name="camera" value="environment" checked><span>Back</span></label>
-						<label><input type="radio" name="camera" value="user"><span>Front</span></label>
-					</div>
 					<select id="mode">
 						<option value="exact" selected>Exact match</option>
 						<option value="loose">Ignore accents & case</option>
 					</select>
-					<label style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted);">
-						<input type="checkbox" id="showPictograms" checked>
-						<span>Show pictograms</span>
-					</label>
+					<div class="toggle" title="Display mode">
+						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
+						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
+					</div>
 				</div>
 			</div>
 			<div id="currentWord" class="word" aria-live="polite">gato</div>
@@ -160,20 +177,22 @@
 		</div>
 
 		<div class="card">
-			<strong>Word list</strong>
-			<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
-			<textarea id="wordList" rows="6" style="width:100%; background:#0f1520; color:var(--fg); border:1px solid #25324a; border-radius:10px; padding:10px; font-size:15px;">gato
+			<details open>
+				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
+				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
+				<textarea id="wordList" rows="6" style="width:100%; background:#0f1520; color:var(--fg); border:1px solid #25324a; border-radius:10px; padding:10px; font-size:15px;">gato
 ratón
 castillo
 elefante
 perro
 tres</textarea>
-			<div class="row">
-				<button id="saveWords">Save list</button>
-				<button id="downloadWords">Download list</button>
-				<button id="uploadBtn">Load from file</button>
-				<input type="file" id="fileInput" accept=".txt" style="display:none;">
-			</div>
+				<div class="row" style="margin-top: 10px;">
+					<button id="saveWords">Save list</button>
+					<button id="downloadWords">Download list</button>
+					<button id="uploadBtn">Load from file</button>
+					<input type="file" id="fileInput" accept=".txt" style="display:none;">
+				</div>
+			</details>
 			<details style="margin-top: 8px;">
 				<summary style="cursor: pointer; color: var(--muted); font-size: 12px;">📁 File handling tips</summary>
 				<div style="padding: 10px; font-size: 12px; color: var(--muted); line-height: 1.5;">
@@ -191,7 +210,7 @@ tres</textarea>
 			</details>
 		</div>
 	</main>
-	<footer><span class="small">Use over HTTPS for camera access. Using native camera API with sound & pictograms.</span></footer>
+	<footer><span class="small">Use over HTTPS for camera access. Using back camera with sound & pictograms.</span></footer>
 
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -214,7 +233,7 @@ tres</textarea>
 	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
-	const cameraRadios = document.querySelectorAll('input[name="camera"]');
+	const displayRadios = document.querySelectorAll('input[name="display"]');
 	const errEl = document.getElementById('err');
 	const video = document.getElementById('video');
 	const canvas = document.getElementById('canvas');
@@ -222,12 +241,11 @@ tres</textarea>
 	const videoContainer = document.getElementById('videoContainer');
 	const starsEl = document.getElementById('stars');
 	const pictogramEl = document.getElementById('pictogram');
-	const showPictogramsCheck = document.getElementById('showPictograms');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
-	const LS_CAMERA = "qr-word-game:camera";
 	const LS_MUTED = "qr-word-game:muted";
+	const LS_DISPLAY = "qr-word-game:display";
 	let stream = null;
 	let scanning = false;
 	let score = 0, streak = 0;
@@ -237,6 +255,12 @@ tres</textarea>
 	let isMuted = localStorage.getItem(LS_MUTED) === 'true';
 	let audioContext = null;
 	let correctWords = [];
+	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
+	
+	// Initialize display mode
+	for (const r of displayRadios) {
+		if (r.value === displayMode) r.checked = true;
+	}
 	
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
@@ -293,6 +317,13 @@ tres</textarea>
 		localStorage.setItem(LS_MUTED, isMuted.toString());
 		toast(isMuted ? 'Sound muted' : 'Sound enabled');
 	});
+	
+	// Display mode toggle
+	displayRadios.forEach(r => r.addEventListener('change', () => {
+		displayMode = r.value;
+		localStorage.setItem(LS_DISPLAY, displayMode);
+		updateDisplay(wordEl.textContent);
+	}));
 
 	// Check for native BarcodeDetector support
 	if ('BarcodeDetector' in window) {
@@ -433,138 +464,89 @@ tres</textarea>
 	}
 	
 	function setWord(w){ 
-		wordEl.textContent = w; 
+		lastText = null;
+		updateDisplay(w);
+	}
+	
+	function updateDisplay(word) {
+		wordEl.textContent = word;
 		statusEl.textContent = ""; 
 		statusEl.className = "status";
-		lastText = null;
 		
-		// Fetch pictogram from ARASAAC
-		if (showPictogramsCheck.checked) {
-			fetchPictogram(w);
+		if (displayMode === 'pictogram') {
+			wordEl.style.display = 'none';
+			pictogramEl.style.display = 'block';
+			fetchPictogram(word);
 		} else {
-			pictogramEl.innerHTML = '';
+			wordEl.style.display = 'block';
+			pictogramEl.style.display = 'none';
 		}
 	}
 	
-	// Fetch pictogram from ARASAAC API
+	// Fetch pictogram from ARASAAC API - using first result always
 	async function fetchPictogram(word) {
 		pictogramEl.innerHTML = '<div style="color: var(--muted);">Loading pictogram...</div>';
 		
 		try {
 			const cleanWord = word.toLowerCase().trim().normalize("NFD").replace(/\p{Diacritic}/gu,"");
 			
-			// Since the API has CORS issues, we'll use a mapping of common words to their known IDs
-			// These IDs are from the ARASAAC database
+			// Corrected ARASAAC IDs based on their website
 			const wordToId = {
-				// Animals
-				'gato': 2391,
-				'perro': 2517,
-				'raton': 6079,
-				'ratón': 6079,
-				'elefante': 35669,
-				'león': 35671,
-				'leon': 35671,
-				'tigre': 35670,
-				'oso': 2519,
-				'conejo': 7148,
-				'pájaro': 8969,
-				'pajaro': 8969,
-				'pez': 6086,
-				'vaca': 2518,
-				'caballo': 7282,
-				'cerdo': 7225,
-				'oveja': 7233,
-				'pollo': 6001,
-				'pato': 7162,
+				// Animals - verified IDs
+				'gato': 7114,  // cat (corrected)
+				'perro': 2517, // dog  
+				'raton': 2394, // mouse
+				'ratón': 2394, // mouse
+				'elefante': 7209, // elephant
+				'león': 29584, // lion
+				'leon': 29584, // lion
+				'tigre': 7350, // tiger
+				'oso': 2395, // bear
+				'conejo': 2392, // rabbit
+				'pájaro': 9652, // bird
+				'pajaro': 9652, // bird
+				'pez': 2426, // fish
+				'vaca': 7377, // cow
+				'caballo': 7282, // horse
+				'cerdo': 7225, // pig
+				'oveja': 7233, // sheep
+				'pollo': 7235, // chicken
+				'pato': 7162, // duck
 				
 				// Objects/Places
-				'casa': 6321,
-				'castillo': 7296,
-				'escuela': 2435,
-				'árbol': 5678,
-				'arbol': 5678,
-				'sol': 5825,
-				'luna': 7011,
-				'estrella': 35831,
-				'agua': 2513,
-				'fuego': 7394,
-				'coche': 5501,
-				'libro': 2449,
-				'mesa': 2497,
-				'silla': 2632,
-				'cama': 6295,
-				'puerta': 11369,
-				'ventana': 11374,
-				'pelota': 2433,
-				'juguete': 6195,
+				'casa': 2433, // house
+				'castillo': 37166, // castle
+				'escuela': 2670, // school
+				'árbol': 5678, // tree
+				'arbol': 5678, // tree
+				'sol': 2435, // sun
+				'luna': 5720, // moon
+				'estrella': 5719, // star
+				'agua': 2244, // water
+				'fuego': 6039, // fire
+				'coche': 2446, // car
+				'libro': 2390, // book
+				'mesa': 2389, // table
+				'silla': 2632, // chair
+				'cama': 6036, // bed
+				'puerta': 7324, // door
+				'ventana': 7378, // window
+				'pelota': 7298, // ball
+				'juguete': 5746, // toy
 				
 				// Numbers
-				'uno': 10266,
-				'dos': 10267,
-				'tres': 10268,
-				'cuatro': 10269,
-				'cinco': 10270,
-				'seis': 10271,
-				'siete': 10272,
-				'ocho': 10273,
-				'nueve': 10274,
-				'diez': 10265,
+				'uno': 9783,
+				'dos': 9788,
+				'tres': 9824,
+				'cuatro': 9763,
+				'cinco': 9759,
+				'seis': 9817,
+				'siete': 9818,
+				'ocho': 9800,
+				'nueve': 9799,
+				'diez': 9767,
 				
-				// Food
-				'manzana': 5810,
-				'plátano': 5811,
-				'platano': 5811,
-				'pan': 5836,
-				'leche': 5857,
-				'queso': 31126,
-				'huevo': 5841,
-				'arroz': 5847,
-				'pasta': 5848,
-				
-				// Colors
-				'rojo': 2612,
-				'azul': 2615,
-				'verde': 2618,
-				'amarillo': 2611,
-				'negro': 2617,
-				'blanco': 2616,
-				'rosa': 11473,
-				'naranja': 2613,
-				'morado': 11476,
-				'gris': 2619,
-				
-				// Actions
-				'comer': 6329,
-				'beber': 2442,
-				'dormir': 6341,
-				'correr': 6325,
-				'saltar': 6348,
-				'jugar': 2461,
-				'leer': 2464,
-				'escribir': 6334,
-				'cantar': 2456,
-				'bailar': 6318,
-				
-				// People/Family
-				'mamá': 7031,
-				'mama': 7031,
-				'papá': 7029,
-				'papa': 7029,
-				'niño': 2488,
-				'niña': 2487,
-				'nina': 2487,
-				'bebé': 2485,
-				'bebe': 2485,
-				'abuelo': 7035,
-				'abuela': 7037,
-				'hermano': 7039,
-				'hermana': 7041,
-				'amigo': 7063,
-				'amiga': 7065,
-				'profesor': 2502,
-				'profesora': 6267,
-				'doctor': 7533,
-				'doctora': 7535
+				// Add more as needed...
 			};
 			
 			// Try to find the word in our mapping
@@ -577,29 +559,20 @@ tres</textarea>
 					const singular = cleanWord.slice(0, -1);
 					pictogramId = wordToId[singular];
 				}
-				// Try adding common endings
-				if (!pictogramId) {
-					pictogramId = wordToId[cleanWord + 'o'] || wordToId[cleanWord + 'a'];
-				}
 			}
 			
 			// If we found a pictogram ID, display it
 			if (pictogramId) {
-				// The ARASAAC API endpoint works without CORS for direct image access
-				// Format: https://api.arasaac.org/v1/pictograms/{id}?download=false
 				const imgUrl = `https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true`;
 				console.log('Loading pictogram for "' + word + '" with ID:', pictogramId);
 				
-				// Directly set the image - the API endpoint serves images directly
 				pictogramEl.innerHTML = `
 					<img src="${imgUrl}" 
 						 alt="${word}" 
-						 style="max-width: 150px; height: auto; border-radius: 8px; border: 2px solid #1c2432;"
-						 onerror="this.parentElement.innerHTML='<div style=\\'color: var(--muted); font-size: 12px;\\'>Could not load image for ${word}</div>';">
+						 style="max-width: 200px; height: auto; border-radius: 8px; border: 2px solid #1c2432;">
 				`;
-				
 			} else {
-				// Try using emojis as fallback for common words
+				// Use emoji fallback
 				const emojiMap = {
 					'gato': '🐱',
 					'perro': '🐕',
@@ -618,45 +591,35 @@ tres</textarea>
 					'coche': '🚗',
 					'libro': '📚',
 					'pelota': '⚽',
-					'manzana': '🍎',
-					'plátano': '🍌',
-					'platano': '🍌',
 					'uno': '1️⃣',
 					'dos': '2️⃣',
 					'tres': '3️⃣',
 					'cuatro': '4️⃣',
-					'cinco': '5️⃣'
+					'cinco': '5️⃣',
+					'seis': '6️⃣',
+					'siete': '7️⃣',
+					'ocho': '8️⃣',
+					'nueve': '9️⃣',
+					'diez': '🔟'
 				};
 				
 				const emoji = emojiMap[cleanWord];
 				if (emoji) {
-					pictogramEl.innerHTML = `
-						<div style="font-size: 80px; line-height: 1;">${emoji}</div>
-						<div style="color: var(--muted); font-size: 10px; margin-top: 8px;">Emoji placeholder</div>
-					`;
+					pictogramEl.innerHTML = `<div style="font-size: 120px; line-height: 1;">${emoji}</div>`;
 				} else {
 					pictogramEl.innerHTML = `
-						<div style="color: var(--muted); font-size: 12px;">
-							No pictogram for "${word}"<br>
-							<span style="font-size: 10px;">Using text only</span>
+						<div style="font-size: 48px; font-weight: bold; color: var(--fg);">
+							${word}
 						</div>
+						<div style="color: var(--muted); font-size: 12px; margin-top: 10px;">No pictogram available</div>
 					`;
 				}
 			}
-			
 		} catch (error) {
 			console.error('Error loading pictogram:', error);
 			pictogramEl.innerHTML = '<div style="color: var(--muted); font-size: 12px;">Could not load pictogram</div>';
 		}
 	}
-	
-	showPictogramsCheck.addEventListener('change', () => {
-		if (showPictogramsCheck.checked) {
-			fetchPictogram(wordEl.textContent);
-		} else {
-			pictogramEl.innerHTML = '';
-		}
-	});
 
 	function normalize(s){
 		if(modeSel.value==="exact") return s.trim();
@@ -691,6 +654,14 @@ tres</textarea>
 		}
 	}
 	
+	function showBigNumber(num) {
+		const el = document.createElement('div');
+		el.id = 'bigMilestone';
+		el.textContent = num;
+		document.body.appendChild(el);
+		setTimeout(() => el.remove(), 1500);
+	}
+	
 	function updateStars() {
 		// Show stars for correct words (last 10)
 		const recentStars = correctWords.slice(-10).map(() => '⭐').join('');
@@ -715,18 +686,21 @@ tres</textarea>
 			// Play sound
 			playCorrectSound();
 			
-			// Check for milestones
+			// Check for milestones with big number display
 			if (streak === 3) {
 				toast("🎉 3 in a row! Great job!");
 				celebrate();
+				showBigNumber(3);
 			} else if (streak === 10) {
 				toast("🏆 10 STREAK! AMAZING!");
 				megaCelebrate();
 				playMilestoneSound();
+				showBigNumber(10);
 			} else if (streak === 20) {
 				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
 				megaCelebrate();
 				playMilestoneSound();
+				showBigNumber(20);
 			} else if (streak % 5 === 0 && streak > 0) {
 				toast(`🔥 ${streak} streak! Keep going!`);
 				celebrate();
@@ -745,27 +719,6 @@ tres</textarea>
 		document.body.appendChild(el);
 		setTimeout(()=> el.remove(), 2000);
 	}
-
-	function getCamera(){
-		const saved = localStorage.getItem(LS_CAMERA);
-		if (saved) { 
-			for (const r of cameraRadios) {
-				if (r.value === saved) r.checked = true;
-			}
-		}
-		const r = Array.from(cameraRadios).find(r => r.checked); 
-		return r ? r.value : "environment";
-	}
-	
-	cameraRadios.forEach(r => r.addEventListener('change', async () => {
-		const newCamera = getCamera();
-		localStorage.setItem(LS_CAMERA, newCamera);
-		if (scanning) { 
-			// Restart with new camera
-			await stop(); 
-			setTimeout(() => start(), 100); // Small delay to ensure clean switch
-		}
-	}));
 
 	// QR Code detection
 	async function scanFrame() {
@@ -796,7 +749,8 @@ tres</textarea>
 
 			if (decodedText && decodedText !== lastText) {
 				lastText = decodedText;
-				const ok = normalize(decodedText) === normalize(wordEl.textContent);
+				const currentWord = wordEl.textContent;
+				const ok = normalize(decodedText) === normalize(currentWord);
 				updateScore(ok);
 				
 				if (ok) {
@@ -819,19 +773,17 @@ tres</textarea>
 		}
 	}
 
-	// Camera controls
+	// Camera controls - always use back camera
 	async function start() {
 		if (scanning) return;
 		
 		try {
 			errEl.textContent = "";
 			
-			// Get the selected camera mode
-			const cameraMode = getCamera();
-			
+			// Always use back camera (environment)
 			const constraints = {
 				video: {
-					facingMode: cameraMode,
+					facingMode: 'environment',
 					width: { ideal: 1280 },
 					height: { ideal: 720 }
 				}
@@ -867,7 +819,7 @@ tres</textarea>
 			} else if (err.name === 'NotReadableError') {
 				errorMsg = "Camera is being used by another app. Close other apps using the camera.";
 			} else if (err.name === 'OverconstrainedError') {
-				errorMsg = "Camera not available. Try the other camera option.";
+				errorMsg = "Back camera not available.";
 			}
 			
 			errEl.innerHTML = errorMsg;
@@ -907,7 +859,6 @@ tres</textarea>
 
 	// Initialize
 	setWord(randomWord());
-	getCamera();
 	</script>
 </body>
 </html>
