@@ -901,24 +901,27 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			
 			// Try using a CORS proxy for the API call
 			// Proxy removed; direct fetch used with graceful fallback
-			const apiUrl = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord)}`;
-			const apiUrlAlt = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''))}`;
-			
-			try {
-				const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
-				
-				if (response.ok) {
-					const items = await response.json();
-					
-					if (items && items.length > 0) {
-						// Use the first result
-						const pictogramId = items[0]._id || items[0].id;
-						pictogramCache.set(cleanWord, pictogramId);
-						displayPictogram(pictogramId, word);
-						return;
-					}
-				}
-			} catch (e) {
+			const apiWorker = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord);
+const apiWorkerAlt = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev/bestsearch?q=' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
+let response = null;
+try { response = await fetch(apiWorker, {mode:'cors'}); } catch(e) { response = null; }
+if (!response || !response.ok) { try { response = await fetch(apiWorkerAlt, {mode:'cors'}); } catch(e) { response = null; } }
+if ((!response || !response.ok)) {
+  const apiUrl = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord);
+  const apiUrlAlt = 'https://api.arasaac.org/v1/pictograms/es/bestsearch/' + encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''));
+  try { response = await fetch(apiUrl, {mode:'cors'}); } catch(e) { response = null; }
+  if (!response || !response.ok) { try { response = await fetch(apiUrlAlt, {mode:'cors'}); } catch(e) { response = null; } }
+}
+if (response && response.ok) {
+  const items = await response.json();
+  if (items && items.length > 0) {
+    const pictogramId = items[0]._id || items[0].id;
+    pictogramCache.set(cleanWord, pictogramId);
+    displayPictogram(pictogramId, word);
+    return;
+  }
+}
+catch (e) {
 				console.log('API call failed, using fallback');
 			}
 			
