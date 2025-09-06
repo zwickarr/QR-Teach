@@ -456,7 +456,7 @@ tres</textarea>
 		</div>
 	</main>
 	<footer>
-		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
+		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org (served via local cache)</span>
 	</footer>
 
 	<!-- Load confetti for celebrations -->
@@ -573,6 +573,7 @@ function showMilestoneOverlay(stars) {
 	let scanning = false;
 	let score = 0, streak = 0;
 	let lastText = null;
+	let lastTextTime = 0; // timestamp for last decoded text
 	let scanInterval = null;
 	let barcodeDetector = null;
 	let isMuted = localStorage.getItem(LS_MUTED) === 'true';
@@ -714,7 +715,7 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			for (const term of searchTerms) {
 				try {
 					const url = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(term)}`;
-					const response = await fetch(url);
+					const response = await fetch(url, {mode:'cors'});
 					
 					if (response.ok) {
 						const data = await response.json();
@@ -870,6 +871,14 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 	const API_DELAY = 500; // Minimum 500ms between API calls
 	
 	async function fetchPictogramFromAPI(word) {
+		/* EARLY FALLBACK PICTOGRAM CHECK */
+		try {
+			const clean = word.toLowerCase().trim();
+			const nf = clean.normalize('NFD').replace(/\p{Diacritic}/gu,'');
+			if (fallbackIds[clean]) { displayPictogram(fallbackIds[clean], word); return; }
+			if (fallbackIds[nf]) { displayPictogram(fallbackIds[nf], word); return; }
+		} catch(e) {}
+
 		pictogramEl.innerHTML = '<div>Loading pictogram...</div>';
 		
 		try {
@@ -893,6 +902,7 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 			// Try using a CORS proxy for the API call
 			// Proxy removed; direct fetch used with graceful fallback
 			const apiUrl = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord)}`;
+			const apiUrlAlt = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord.normalize('NFD').replace(/\p{Diacritic}/gu,''))}`;
 			
 			try {
 				const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
@@ -925,12 +935,12 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 		currentPictogramId = pictogramId;
 		
 		// Direct PNG URL (500px version)
-		const imgUrl = `https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png`;
+		const imgUrl = `https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${pictogramId}.png`;
 		
 		pictogramEl.innerHTML = `
 			<img src="${imgUrl}" 
 				 alt="${word}" 
-				 onerror="this.onerror=null; this.src='https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true';">
+				 onerror="this.onerror=null; this.src='https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png';">
 		`;
 		
 		console.log(`Loaded pictogram for "${word}" with ID: ${pictogramId}`);
@@ -1143,7 +1153,12 @@ const criticalFallback = ['niña','mamá','papá','árbol'];
 				}
 			}
 
-			if (decodedText && decodedText !== lastText) {
+			if (decodedText) {
+			const nowTs = Date.now();
+			if (decodedText === lastText && (nowTs - lastTextTime) < 1200) { return; }
+			lastText = decodedText;
+			lastTextTime = nowTs;
+			
 				lastText = decodedText;
 				const currentWord = wordEl.textContent;
 				const ok = normalize(decodedText) === normalize(currentWord);
