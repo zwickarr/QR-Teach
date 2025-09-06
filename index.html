@@ -368,13 +368,18 @@
 					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
-<div class="toggle" title="Display mode">
+					<div class="toggle" title="Display mode">
 						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
 						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
 					</div>
 				</div>
 			</div>
-			<div id="currentWord" class="word" aria-live="polite">gato</div>
+			
+			<div class="row" style="margin-top:6px; align-items:center;">
+				<label for="studentName" class="tag" title="Used in celebration messages">Student name:</label>
+				<input id="studentName" type="text" placeholder="e.g., John" style="padding:8px 14px;border-radius:8px;border:1px solid #2a3548;min-width:160px;margin-left:8px;">
+			</div>
+<div id="currentWord" class="word" aria-live="polite">gato</div>
 			<div id="pictogram"></div>
 			<div id="stars"></div>
 			<div class="status" id="status"></div>
@@ -415,21 +420,19 @@ castillo
 elefante
 perro
 tres</textarea>
-
                 <div class="row" style="margin-top: 10px; align-items: center;">
                     <span class="tag" title="How words are matched">Matching mode</span>
                     <select id="mode">
-						<option value="exact">Exact match</option>
-						<option value="loose" selected>Ignore accents & case</option>
-					</select>
+  <option value="exact">Exact match</option>
+  <option value="loose" selected>Ignore accents & case</option>
+</select>
                 </div>
-    
+
 				<div class="row" style="margin-top: 10px;">
-					<button id="clearWords" style="background:#ff4d4d;">Clear list</button>
-				<button id="saveWords">Save list</button>
-					<button id="clearWords" style="background:#9b2c2c;">Clear list</button>
-					<button id="downloadWords">Download list</button>
-					<button id="uploadBtn">Load from file</button>
+					<button id="clearWords" onclick="clearWordsNow()" style="background:#e53e3e;">❌ Clear list</button>
+					<button id="saveWords">💾 Save list</button>
+					<button id="downloadWords">⬇️ Download list</button>
+					<button id="uploadBtn">📂 Load from file</button>
 					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
 					<input type="file" id="fileInput" accept=".txt" style="display:none;">
 				</div>
@@ -457,11 +460,71 @@ tres</textarea>
 	</footer>
 
 	<!-- Load confetti for celebrations -->
-	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
+// =======================
+// Student Name Persistence
+// =======================
+const studentNameInput = document.getElementById('studentName');
+const LS_STUDENT = "qr-word-game:student-name";
+try {
+    const savedStudent = localStorage.getItem(LS_STUDENT);
+    if (studentNameInput && savedStudent) studentNameInput.value = savedStudent;
+    studentNameInput?.addEventListener('input', () => {
+        localStorage.setItem(LS_STUDENT, studentNameInput.value || '');
+    });
+} catch(e) {
+    console.warn("Student name localStorage error", e);
+}
+
+// =======================
+// Clear List Function
+// =======================
+window.clearWordsNow = function(){
+	wordListTA.value = '';
+	localStorage.setItem(LS_KEY, '');
+	words = loadWords();
+	usedWords = [];
+	setWord(randomWord());
+	toast('Cleared all words');
+}
+    toast('Cleared all words');
+}
+
+// =======================
+// Celebration Overlay
+// =======================
+function showMilestoneOverlay(stars) {
+    const name = (studentNameInput && studentNameInput.value.trim()) || (localStorage.getItem(LS_STUDENT)||'').trim();
+    const shout = name ? `KEEP GOING, ${name.toUpperCase()}!` : 'KEEP GOING!';
+    const overlay = document.createElement('div');
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:10001";
+    const card = document.createElement('div');
+    card.style.cssText = "background:#1e3a5f;color:#d1e9ff;border-radius:18px;padding:24px 20px;width:min(92%,680px);box-shadow:0 20px 70px rgba(0,0,0,.6);border:6px solid #e2e8f0;text-align:center";
+    card.innerHTML = `<div style="font-size:56px;line-height:1;margin-bottom:8px;">${"⭐".repeat(stars)}</div>
+                      <div style="font-size:72px;font-weight:800;letter-spacing:1px;margin:6px 0;">${stars} STARS!</div>
+                      <div style="font-size:28px;font-weight:700;opacity:.9;margin-top:6px;">${shout}</div>`;
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    setTimeout(()=>overlay.remove(), 3400);
+}
+
+</script>
 	<!-- Load jsQR as fallback QR reader -->
 	<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
 	<script>
+	
+	function clearWordsNow(){
+		try {
+			wordListTA.value = '';
+			localStorage.setItem(LS_KEY, '');
+			words = loadWords();
+			usedWords = [];
+			setWord(randomWord());
+			toast('Cleared all words');
+		} catch(e) { console.error('Clear list failed:', e); }
+	}
+
 	// Theme management
 	const themeBtn = document.getElementById('themeBtn');
 	const body = document.body;
@@ -484,9 +547,6 @@ tres</textarea>
 	const nextBtn = document.getElementById('nextBtn');
 	const muteBtn = document.getElementById('muteBtn');
 	const modeSel = document.getElementById('mode');
-	// SET DEFAULT MATCH MODE
-	/* SET DEFAULT MATCH MODE */
-	modeSel.value = 'loose';
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
 	const downloadWordsBtn = document.getElementById('downloadWords');
@@ -521,65 +581,11 @@ tres</textarea>
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
 	let currentPictogramId = null;
 	
-	
-	const clearBtn = document.getElementById('clearWords');
-	clearBtn.addEventListener('click', () => {
-		// Create confirmation overlay
-		const overlay = document.createElement('div');
-		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
-		overlay.innerHTML = `
-			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
-				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
-				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
-				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
-			</div>
-		`;
-		document.body.appendChild(overlay);
-
-		// Handle button clicks
-		overlay.querySelector('#confirmYes').addEventListener('click', () => {
-			wordListTA.value = '';
-			toast('Word list cleared!');
-			overlay.remove();
-		});
-		overlay.querySelector('#confirmNo').addEventListener('click', () => {
-			overlay.remove();
-		});
-	});
-
-
 	// Initialize display mode
 	for (const r of displayRadios) {
 		if (r.value === displayMode) r.checked = true;
 	}
 	
-	
-	const clearBtn = document.getElementById('clearWords');
-	clearBtn.addEventListener('click', () => {
-		// Create confirmation overlay
-		const overlay = document.createElement('div');
-		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
-		overlay.innerHTML = `
-			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
-				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
-				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
-				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
-			</div>
-		`;
-		document.body.appendChild(overlay);
-
-		// Handle button clicks
-		overlay.querySelector('#confirmYes').addEventListener('click', () => {
-			wordListTA.value = '';
-			toast('Word list cleared!');
-			overlay.remove();
-		});
-		overlay.querySelector('#confirmNo').addEventListener('click', () => {
-			overlay.remove();
-		});
-	});
-
-
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
@@ -627,6 +633,16 @@ tres</textarea>
 		setTimeout(() => playSound(1047, 0.3), 300); // High C
 	}
 	
+	
+// Ensure default match mode to 'loose' on first load if no prior choice is stored.
+try {
+    if (!localStorage.getItem('qr-word-game:match-default-set')) {
+        const modeSelInit = document.getElementById('mode');
+        if (modeSelInit) modeSelInit.value = 'loose';
+        localStorage.setItem('qr-word-game:match-default-set','1');
+    }
+} catch(e) {}
+
 	muteBtn.addEventListener('click', () => {
 		isMuted = !isMuted;
 		muteBtn.textContent = isMuted ? '🔇' : '🔊';
@@ -687,16 +703,18 @@ tres</textarea>
 				'cinco', 'rojo', 'azul', 'verde', 'amarillo', 'grande', 'pequeño',
 				'feliz', 'triste', 'caliente', 'frío', 'día', 'noche', 'amigo'
 			];
+const criticalFallback = ['niña','mamá','papá','árbol'];
+
 			
 			const validWords = [];
 			
 			// Use a proxy to avoid CORS issues
-			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			// Proxy removed; direct fetch used with graceful fallback
 			
 			for (const term of searchTerms) {
 				try {
 					const url = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(term)}`;
-					const response = await fetch(proxyUrl + encodeURIComponent(url));
+					const response = await fetch(url);
 					
 					if (response.ok) {
 						const data = await response.json();
@@ -713,6 +731,14 @@ tres</textarea>
 			}
 			
 			if (validWords.length > 0) {
+			// Merge fallback for missing words
+			if (validWords.length < searchTerms.length) {
+				const missing = searchTerms.filter(w => !validWords.includes(w));
+				console.warn('API call failed for some words:', missing);
+				validWords.push(...criticalFallback.filter(w => !validWords.includes(w)));
+				oast(`Some words failed (${missing.length}), added fallback words.`);
+			}
+
 				wordListTA.value = validWords.join('\n');
 				saveWords();
 				toast(`Loaded ${validWords.length} validated ARASAAC words!`);
@@ -865,7 +891,7 @@ tres</textarea>
 			lastAPICall = Date.now();
 			
 			// Try using a CORS proxy for the API call
-			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			// Proxy removed; direct fetch used with graceful fallback
 			const apiUrl = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord)}`;
 			
 			try {
@@ -934,6 +960,24 @@ tres</textarea>
 			'dos': 2628,
 			'cuatro': 2630,
 			'cinco': 2631
+		,
+			'niña': 17938
+		,
+			'nina': 17938
+		,
+			'niño': 16062
+		,
+			'nino': 16062
+		,
+			'mamá': 11830
+		,
+			'mama': 11830
+		,
+			'papá': 11829
+		,
+			'papa': 11829
+		,
+			'amigo': 25790
 		};
 		
 		const fallbackId = fallbackIds[cleanWord];
@@ -1028,38 +1072,30 @@ tres</textarea>
 			streak += 1;
 			correctWords.push(wordEl.textContent);
 			const totalCorrect = correctWords.length;
+			let overlayShown = false;
+			if ([3,5,10,20].includes(totalCorrect)) {
+				showMilestoneOverlay(totalCorrect);
+				overlayShown = true;
+			}
 			updateStars();
 			
 			playCorrectSound();
 			
-			/* Total-correct milestones */
-			if (totalCorrect === 3) {
-				toast("🎉 3 correct! Great start!");
+			if (!overlayShown && streak === 3) {
+				showMilestoneOverlay(3);
+				toast("🎉 3 STREAK! Great job!");
 				celebrate();
-				showBigNumber(3);
-			} else if (totalCorrect === 10) {
-				toast("🏆 10 correct! Amazing!");
-				megaCelebrate();
-				playMilestoneSound();
-				showBigNumber(10);
-			} else if (totalCorrect === 20) {
-				toast("🌟 20 correct! You're a champion!");
-				megaCelebrate();
-				playMilestoneSound();
-				showBigNumber(20);
-			}
-
-			/* Streak milestones (unchanged) */
-			if (streak === 3) {
-				toast("🎉 3 in a row! Great job!");
+			} else if (!overlayShown && streak === 5) {
+				showMilestoneOverlay(5);
+				toast("🔥 5 STREAK! Keep going!");
 				celebrate();
-				showBigNumber(3);
-			} else if (streak === 10) {
+			} else if (!overlayShown && streak === 10) { showMilestoneOverlay(10);
+			
 				toast("🏆 10 STREAK! AMAZING!");
 				megaCelebrate();
 				playMilestoneSound();
 				showBigNumber(10);
-			} else if (streak === 20) {
+			} else if (!overlayShown && streak === 20) { showMilestoneOverlay(20);
 				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
 				megaCelebrate();
 				playMilestoneSound();
@@ -1211,47 +1247,8 @@ tres</textarea>
 	stopBtn.addEventListener('click', stop);
 	nextBtn.addEventListener('click', () => setWord(randomWord()));
 
-	
-	const clearBtn = document.getElementById('clearWords');
-	clearBtn.addEventListener('click', () => {
-		// Create confirmation overlay
-		const overlay = document.createElement('div');
-		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
-		overlay.innerHTML = `
-			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
-				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
-				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
-				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
-			</div>
-		`;
-		document.body.appendChild(overlay);
-
-		// Handle button clicks
-		overlay.querySelector('#confirmYes').addEventListener('click', () => {
-			wordListTA.value = '';
-			toast('Word list cleared!');
-			overlay.remove();
-		});
-		overlay.querySelector('#confirmNo').addEventListener('click', () => {
-			overlay.remove();
-		});
-	});
-
-
 	// Initialize
 	setWord(randomWord());
 	</script>
-
-	<div id="confirmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99999; align-items:center; justify-content:center;">
-		<div role="dialog" aria-modal="true" style="background:#111722; color:#fff; border:1px solid #1c2432; border-radius:16px; padding:20px; width:min(90%, 420px); box-shadow:0 20px 60px rgba(0,0,0,.6);">
-			<div style="font-weight:700; font-size:18px; margin-bottom:8px;">Confirm</div>
-			<p style="margin-bottom:16px;">Are you sure you want to clear out all words?</p>
-			<div style="display:flex; gap:10px; justify-content:flex-end;">
-				<button id="confirmNo" style="background:#2a3548; color:#fff; padding:10px 16px; border-radius:10px;">No</button>
-				<button id="confirmYes" style="background:linear-gradient(135deg,#667eea 0%, #764ba2 100%); color:#fff; padding:10px 16px; border-radius:10px;">Yes</button>
-			</div>
-		</div>
-	</div>
-
 </body>
 </html>
