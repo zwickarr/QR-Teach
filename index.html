@@ -4,35 +4,210 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 	<title>QR Word Match</title>
-	<meta name="color-scheme" content="dark light">
 	<style>
-		:root { --bg:#0b0d12; --fg:#f7f7f7; --muted:#a8b0bd; --ok:#1cc88a; --bad:#ff5d5d; }
-		* { box-sizing: border-box; }
-		body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
-			font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-			display: grid; min-height: 100vh; grid-template-rows: auto 1fr auto; }
-		header, footer { padding: 12px 16px; background: #0f131a; border-bottom: 1px solid #151a22; }
-		header h1 { margin: 0; font-size: 18px; letter-spacing: .4px; }
-		main { padding: 14px; display: grid; gap: 12px; align-content: start; }
-		.card { background: #111722; border: 1px solid #1c2432; border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
-		button, select { background: #1a2230; color: var(--fg); border: 1px solid #2a3548; border-radius: 10px;
-			padding: 10px 14px; font-size: 16px; cursor: pointer; }
-		button:active { transform: translateY(1px); }
-		button:disabled { opacity: 0.5; cursor: not-allowed; }
-		.word { font-size: clamp(28px, 7vw, 60px); text-align: center; font-weight: 800; letter-spacing: .8px;
-			padding: 12px 10px; border-radius: 12px; background: #0f1520; border: 1px dashed #25324a; }
-		.status { text-align: center; font-weight: 700; min-height: 1.2em; }
-		.status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+		* { box-sizing: border-box; margin: 0; padding: 0; }
 		
-		/* Video container styles */
+		/* Light theme */
+		body.light { 
+			background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+			color: #2c3e50;
+		}
+		.light header { 
+			background: white;
+			color: #2c3e50;
+			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+		}
+		.light .card { 
+			background: white;
+			color: #2c3e50;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+		}
+		.light button { 
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+			box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+		}
+		.light select, .light textarea {
+			background: #f8f9fa;
+			color: #2c3e50;
+			border: 2px solid #e0e6ed;
+		}
+		.light .word { 
+			background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+			color: white;
+		}
+		.light .toggle {
+			background: #f0f3ff;
+		}
+		.light .toggle input:checked + span {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+		}
+		.light .tag { 
+			color: #667eea;
+			background: #f0f3ff;
+		}
+		.light footer {
+			background: white;
+			color: #718096;
+			box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+		}
+		.light #videoContainer {
+			background: white;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+		}
+		
+		/* Dark theme */
+		body.dark { 
+			background: #0b0d12;
+			color: #f7f7f7;
+		}
+		.dark header { 
+			background: #0f131a;
+			color: #f7f7f7;
+			border-bottom: 1px solid #151a22;
+		}
+		.dark .card { 
+			background: #111722;
+			color: #f7f7f7;
+			border: 1px solid #1c2432;
+		}
+		.dark button { 
+			background: #1a2230;
+			color: #f7f7f7;
+			border: 1px solid #2a3548;
+		}
+		.dark button:hover {
+			background: #2a3548;
+		}
+		.dark select, .dark textarea {
+			background: #0f1520;
+			color: #f7f7f7;
+			border: 1px solid #25324a;
+		}
+		.dark .word { 
+			background: #0f1520;
+			color: #f7f7f7;
+			border: 1px dashed #25324a;
+		}
+		.dark .toggle {
+			background: #0d1420;
+			border: 1px solid #1f2a3d;
+		}
+		.dark .toggle input:checked + span {
+			background: #1a2230;
+			color: #f7f7f7;
+			border: 1px solid #2a3548;
+		}
+		.dark .tag { 
+			color: #a8b0bd;
+			background: #0d1420;
+			border: 1px solid #1f2a3d;
+		}
+		.dark footer {
+			background: #0f131a;
+			color: #a8b0bd;
+			border-top: 1px solid #151a22;
+		}
+		.dark #videoContainer {
+			background: #0a0f16;
+			border: 1px solid #283449;
+		}
+		.dark .small {
+			color: #a8b0bd;
+		}
+		.dark #err {
+			color: #ff8c8c;
+		}
+		
+		/* Common styles */
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+			display: flex;
+			flex-direction: column;
+			min-height: 100vh;
+			transition: background 0.3s ease;
+		}
+		header { 
+			padding: 16px 20px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		header h1 { 
+			font-size: 24px;
+			font-weight: bold;
+		}
+		main { 
+			flex: 1;
+			padding: 20px;
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+			max-width: 800px;
+			margin: 0 auto;
+			width: 100%;
+		}
+		.card { 
+			border-radius: 20px;
+			padding: 20px;
+		}
+		button { 
+			border: none;
+			border-radius: 12px;
+			padding: 12px 20px;
+			font-size: 16px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+		button:hover {
+			transform: translateY(-2px);
+		}
+		button:active { transform: translateY(0); }
+		button:disabled { 
+			opacity: 0.5; 
+			cursor: not-allowed;
+			transform: none;
+		}
+		select, textarea {
+			border-radius: 10px;
+			padding: 10px 15px;
+			font-size: 16px;
+		}
+		select {
+			cursor: pointer;
+		}
+		textarea {
+			padding: 12px;
+			font-family: monospace;
+			resize: vertical;
+		}
+		.word { 
+			font-size: clamp(36px, 8vw, 72px);
+			text-align: center;
+			font-weight: 900;
+			padding: 30px 20px;
+			border-radius: 20px;
+			text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+			margin: 20px 0;
+		}
+		.status { 
+			text-align: center;
+			font-weight: 700;
+			font-size: 18px;
+			min-height: 30px;
+			margin: 10px 0;
+		}
+		.status.ok { color: #00d084; }
+		.status.bad { color: #ff6b6b; }
+		
 		#videoContainer { 
-			width: 100%; 
-			max-width: 560px; 
-			margin: 0 auto; 
-			border-radius: 12px; 
+			width: 100%;
+			max-width: 500px;
+			margin: 20px auto;
+			border-radius: 20px;
 			overflow: hidden;
-			border: 1px solid #283449; 
-			background: #0a0f16; 
 			position: relative;
 			aspect-ratio: 4/3;
 		}
@@ -42,9 +217,7 @@
 			object-fit: cover;
 			display: block;
 		}
-		#canvas {
-			display: none;
-		}
+		#canvas { display: none; }
 		.scan-region {
 			position: absolute;
 			top: 50%;
@@ -52,20 +225,20 @@
 			transform: translate(-50%, -50%);
 			width: 250px;
 			height: 250px;
-			border: 2px solid rgba(28, 200, 138, 0.6);
-			border-radius: 12px;
-			box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+			border: 3px solid #00d084;
+			border-radius: 20px;
+			box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
 		}
 		.scan-line {
 			position: absolute;
 			width: 100%;
-			height: 2px;
-			background: linear-gradient(90deg, transparent, #1cc88a, transparent);
+			height: 3px;
+			background: linear-gradient(90deg, transparent, #00d084, transparent);
 			animation: scan 2s linear infinite;
 		}
 		@keyframes scan {
 			0% { top: 0; }
-			100% { top: calc(100% - 2px); }
+			100% { top: calc(100% - 3px); }
 		}
 		@keyframes pulse {
 			0%, 100% { transform: scale(1); }
@@ -78,53 +251,113 @@
 		}
 		
 		#stars { 
-			text-align: center; 
-			font-size: 28px; 
-			min-height: 35px;
-			animation-duration: 0.5s;
-			animation-timing-function: ease-in-out;
+			text-align: center;
+			font-size: 32px;
+			min-height: 40px;
+			margin: 10px 0;
 		}
 		#pictogram {
 			text-align: center;
-			margin: 10px 0;
-			min-height: 150px;
+			margin: 20px 0;
+			min-height: 200px;
 			display: none;
 		}
-		#muteBtn {
-			font-size: 20px;
-			padding: 8px 12px;
-			background: #1a2230;
-			min-width: 50px;
+		#pictogram img {
+			max-width: 250px;
+			height: auto;
+			border-radius: 12px;
+		}
+		#muteBtn, #themeBtn {
+			font-size: 24px;
+			padding: 10px 15px;
+			min-width: 60px;
 		}
 		#bigMilestone {
 			position: fixed;
 			top: 50%;
 			left: 50%;
 			transform: translate(-50%, -50%);
-			font-size: 150px;
+			font-size: 200px;
 			font-weight: bold;
-			color: #1cc88a;
-			text-shadow: 0 0 30px rgba(28, 200, 138, 0.8);
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
 			animation: bigNumber 1s ease-out;
 			pointer-events: none;
 			z-index: 10000;
 		}
 		
-		.small { color: var(--muted); font-size: 12px; }
-		.row { display: flex; gap: 8px; flex-wrap: wrap; align-items:center; }
-		.tag { font-size: 12px; color: var(--muted); background:#0d1420; border:1px solid #1f2a3d; padding:6px 8px; border-radius:999px;}
-		.selects { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-		.toggle { display:flex; gap:6px; background:#0d1420; border:1px solid #1f2a3d; padding:6px; border-radius:999px; }
-		.toggle label { padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none; }
-		.toggle input { display:none; }
-		.toggle input:checked + span { background:#1a2230; border:1px solid #2a3548; }
-		.loading { padding: 20px; text-align: center; color: var(--muted); }
-		details summary { cursor: pointer; user-select: none; }
-		details summary:hover { color: var(--fg); }
+		.row { 
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			align-items: center;
+			margin: 10px 0;
+		}
+		.tag { 
+			font-size: 14px;
+			font-weight: 600;
+			padding: 8px 16px;
+			border-radius: 999px;
+		}
+		.selects {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+		.toggle {
+			display: flex;
+			gap: 4px;
+			padding: 4px;
+			border-radius: 999px;
+		}
+		.toggle label {
+			padding: 8px 16px;
+			border-radius: 999px;
+			cursor: pointer;
+			user-select: none;
+			font-weight: 600;
+			transition: all 0.3s;
+		}
+		.toggle input { display: none; }
+		details {
+			margin: 10px 0;
+		}
+		details summary {
+			cursor: pointer;
+			user-select: none;
+			font-weight: bold;
+			font-size: 18px;
+			padding: 10px 0;
+		}
+		details summary:hover {
+			color: #667eea;
+		}
+		footer {
+			padding: 16px;
+			text-align: center;
+			font-size: 14px;
+		}
+		#err {
+			font-size: 14px;
+			margin: 10px 0;
+		}
+		.small {
+			font-size: 13px;
+		}
+		#loadingMsg {
+			text-align: center;
+			padding: 20px;
+			font-style: italic;
+		}
 	</style>
 </head>
-<body>
-	<header><h1>QR Word Match</h1></header>
+<body class="light">
+	<header>
+		<h1>🎯 QR Word Match Game</h1>
+		<button id="themeBtn" title="Toggle theme">🌙</button>
+	</header>
 	<main>
 		<div class="card">
 			<div class="row" style="justify-content:space-between;">
@@ -162,10 +395,10 @@
 				<div class="tag" id="scoreTag">Score: 0</div>
 				<div class="tag" id="streakTag">Streak: 0 🔥</div>
 			</div>
-			<div id="err" class="small" style="color:#ff8c8c;"></div>
+			<div id="err"></div>
 			<details style="margin-top: 8px;">
-				<summary style="cursor: pointer; color: var(--muted); font-size: 12px;">📷 Camera troubleshooting</summary>
-				<div style="padding: 10px; font-size: 12px; color: var(--muted); line-height: 1.5;">
+				<summary style="cursor: pointer; font-size: 12px;">📷 Camera troubleshooting</summary>
+				<div style="padding: 10px; font-size: 12px; line-height: 1.5;">
 					<strong>If camera won't start:</strong><br>
 					• First time? Click "Allow" when browser asks for camera permission<br>
 					• Blocked before? Click lock icon in address bar → Camera → Allow → Refresh<br>
@@ -180,7 +413,7 @@
 			<details open>
 				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
 				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
-				<textarea id="wordList" rows="6" style="width:100%; background:#0f1520; color:var(--fg); border:1px solid #25324a; border-radius:10px; padding:10px; font-size:15px;">gato
+				<textarea id="wordList" rows="6">gato
 ratón
 castillo
 elefante
@@ -190,12 +423,14 @@ tres</textarea>
 					<button id="saveWords">Save list</button>
 					<button id="downloadWords">Download list</button>
 					<button id="uploadBtn">Load from file</button>
+					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
 					<input type="file" id="fileInput" accept=".txt" style="display:none;">
 				</div>
+				<div id="loadingMsg" style="display:none;">Loading validated words from ARASAAC...</div>
 			</details>
 			<details style="margin-top: 8px;">
-				<summary style="cursor: pointer; color: var(--muted); font-size: 12px;">📁 File handling tips</summary>
-				<div style="padding: 10px; font-size: 12px; color: var(--muted); line-height: 1.5;">
+				<summary style="cursor: pointer; font-size: 12px;">📁 File handling tips</summary>
+				<div style="padding: 10px; font-size: 12px; line-height: 1.5;">
 					<strong>iPhone/iPad:</strong><br>
 					• Downloads go to Files app → Downloads folder<br>
 					• In Safari: Tap download icon in address bar<br>
@@ -203,14 +438,16 @@ tres</textarea>
 					<strong>Android:</strong><br>
 					• Downloads go to Downloads folder<br>
 					• Check notification or Downloads app<br><br>
-					<strong>Sharing tip:</strong><br>
-					• Teachers can share word lists via email/AirDrop<br>
-					• Students save the .txt file and load it here
+					<strong>ARASAAC Words:</strong><br>
+					• Click "Load ARASAAC words" to get validated Spanish words with pictograms<br>
+					• These words are guaranteed to have pictogram images
 				</div>
 			</details>
 		</div>
 	</main>
-	<footer><span class="small">Use over HTTPS for camera access. Using back camera with sound & pictograms.</span></footer>
+	<footer>
+		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
+	</footer>
 
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -218,6 +455,20 @@ tres</textarea>
 	<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
 	<script>
+	// Theme management
+	const themeBtn = document.getElementById('themeBtn');
+	const body = document.body;
+	const savedTheme = localStorage.getItem('qr-word-game:theme') || 'light';
+	body.className = savedTheme;
+	themeBtn.textContent = savedTheme === 'light' ? '🌙' : '☀️';
+	
+	themeBtn.addEventListener('click', () => {
+		const newTheme = body.className === 'light' ? 'dark' : 'light';
+		body.className = newTheme;
+		themeBtn.textContent = newTheme === 'light' ? '🌙' : '☀️';
+		localStorage.setItem('qr-word-game:theme', newTheme);
+	});
+	
 	// UI Elements
 	const wordEl = document.getElementById('currentWord');
 	const statusEl = document.getElementById('status');
@@ -230,6 +481,7 @@ tres</textarea>
 	const saveWordsBtn = document.getElementById('saveWords');
 	const downloadWordsBtn = document.getElementById('downloadWords');
 	const uploadBtn = document.getElementById('uploadBtn');
+	const loadArasaacBtn = document.getElementById('loadArasaacBtn');
 	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
@@ -241,6 +493,7 @@ tres</textarea>
 	const videoContainer = document.getElementById('videoContainer');
 	const starsEl = document.getElementById('stars');
 	const pictogramEl = document.getElementById('pictogram');
+	const loadingMsg = document.getElementById('loadingMsg');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
@@ -256,6 +509,7 @@ tres</textarea>
 	let audioContext = null;
 	let correctWords = [];
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
+	let currentPictogramId = null;
 	
 	// Initialize display mode
 	for (const r of displayRadios) {
@@ -297,14 +551,12 @@ tres</textarea>
 	}
 	
 	function playCorrectSound() {
-		// Pleasant ascending tones
 		setTimeout(() => playSound(523, 0.1), 0);    // C
 		setTimeout(() => playSound(659, 0.1), 100);  // E
 		setTimeout(() => playSound(784, 0.2), 200);  // G
 	}
 	
 	function playMilestoneSound() {
-		// Fanfare sound
 		setTimeout(() => playSound(523, 0.1), 0);    // C
 		setTimeout(() => playSound(659, 0.1), 100);  // E
 		setTimeout(() => playSound(784, 0.1), 200);  // G
@@ -339,7 +591,6 @@ tres</textarea>
 	function loadWords(){
 		const saved = localStorage.getItem(LS_KEY);
 		if(saved) wordListTA.value = saved;
-		// Remove duplicates (case-insensitive) and empty lines
 		const lines = wordListTA.value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean);
 		const seen = new Set();
 		return lines.filter(word => {
@@ -353,21 +604,85 @@ tres</textarea>
 	function saveWords(){
 		localStorage.setItem(LS_KEY, wordListTA.value);
 		words = loadWords();
+		usedWords = [];
 		toast("Saved " + words.length + " words!");
 	}
+	
+	// Load validated words from ARASAAC
+	async function loadArasaacWords() {
+		loadingMsg.style.display = 'block';
+		loadArasaacBtn.disabled = true;
+		
+		try {
+			// Common Spanish words to search for
+			const searchTerms = [
+				'casa', 'perro', 'gato', 'coche', 'árbol', 'sol', 'luna', 'agua', 
+				'libro', 'mesa', 'silla', 'cama', 'puerta', 'ventana', 'escuela',
+				'niño', 'niña', 'mamá', 'papá', 'comer', 'beber', 'dormir', 'jugar',
+				'correr', 'saltar', 'leer', 'escribir', 'uno', 'dos', 'tres', 'cuatro',
+				'cinco', 'rojo', 'azul', 'verde', 'amarillo', 'grande', 'pequeño',
+				'feliz', 'triste', 'caliente', 'frío', 'día', 'noche', 'amigo'
+			];
+			
+			const validWords = [];
+			
+			// Use a proxy to avoid CORS issues
+			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			
+			for (const term of searchTerms) {
+				try {
+					const url = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(term)}`;
+					const response = await fetch(proxyUrl + encodeURIComponent(url));
+					
+					if (response.ok) {
+						const data = await response.json();
+						if (data && data.length > 0) {
+							validWords.push(term);
+						}
+					}
+				} catch (e) {
+					console.log(`Could not validate: ${term}`);
+				}
+				
+				// Small delay to avoid overwhelming the API
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+			
+			if (validWords.length > 0) {
+				wordListTA.value = validWords.join('\n');
+				saveWords();
+				toast(`Loaded ${validWords.length} validated ARASAAC words!`);
+			} else {
+				// Fallback to known good words
+				const fallbackWords = [
+					'gato', 'perro', 'casa', 'sol', 'luna', 'agua', 'árbol',
+					'libro', 'mesa', 'silla', 'coche', 'niño', 'niña',
+					'comer', 'dormir', 'jugar', 'uno', 'dos', 'tres'
+				];
+				wordListTA.value = fallbackWords.join('\n');
+				saveWords();
+				toast('Loaded default ARASAAC words');
+			}
+		} catch (error) {
+			console.error('Error loading ARASAAC words:', error);
+			toast('Could not load ARASAAC words');
+		} finally {
+			loadingMsg.style.display = 'none';
+			loadArasaacBtn.disabled = false;
+		}
+	}
+	
+	loadArasaacBtn.addEventListener('click', loadArasaacWords);
 	
 	function downloadWords(){
 		const text = wordListTA.value;
 		const timestamp = new Date().toISOString().slice(0, 10);
 		const filename = `qr-words-${timestamp}.txt`;
 		
-		// Check if Web Share API is available (works on mobile)
 		if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
-			// Create a blob and file for sharing
 			const blob = new Blob([text], { type: 'text/plain' });
 			const file = new File([blob], filename, { type: 'text/plain' });
 			
-			// Use Web Share API to let user choose where to save/share
 			navigator.share({
 				files: [file],
 				title: 'QR Word List',
@@ -375,7 +690,6 @@ tres</textarea>
 			}).then(() => {
 				toast("Shared successfully!");
 			}).catch(err => {
-				// If share fails, fall back to other method
 				if (err.name !== 'AbortError') {
 					fallbackDownload(text, filename);
 				}
@@ -386,55 +700,19 @@ tres</textarea>
 	}
 	
 	function fallbackDownload(text, filename) {
-		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-		
-		if (isIOS) {
-			// For iOS: Create a data URL and open in new tab
-			const dataUrl = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
-			const newWindow = window.open();
-			newWindow.document.write(`
-				<html>
-				<head>
-					<title>${filename}</title>
-					<meta name="viewport" content="width=device-width, initial-scale=1">
-					<style>
-						body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; margin: 0; }
-						.instructions { margin-bottom: 20px; padding: 15px; background: #007AFF; color: white; border-radius: 10px; }
-						.content { padding: 15px; border: 1px solid #ccc; background: white; border-radius: 10px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
-						button { background: #007AFF; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 16px; margin: 10px 5px; }
-					</style>
-				</head>
-				<body>
-				<div class="instructions">
-					<strong style="font-size: 18px;">Save your word list:</strong><br><br>
-					1. Tap the <strong>Share button</strong> ⬆️ (square with arrow)<br>
-					2. Choose where to save:<br>
-					   • <strong>Save to Files</strong> → Pick any folder<br>
-					   • <strong>Notes</strong> → Save as a note<br>
-					   • <strong>AirDrop</strong> → Send to nearby device<br>
-					   • <strong>Mail/Messages</strong> → Send to someone<br><br>
-					Or: <button onclick="navigator.clipboard.writeText(document.querySelector('.content').innerText).then(() => alert('Copied to clipboard!'))">Copy All Text</button>
-				</div>
-				<div class="content">${text}</div>
-				</body>
-				</html>
-			`);
-		} else {
-			// For desktop/Android: Use normal download
-			const blob = new Blob([text], { type: 'text/plain' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = filename;
-			a.style.display = 'none';
-			document.body.appendChild(a);
-			a.click();
-			setTimeout(() => {
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			}, 100);
-			toast("Check your Downloads folder for: " + filename);
-		}
+		const blob = new Blob([text], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		setTimeout(() => {
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		}, 100);
+		toast("Downloaded: " + filename);
 	}
 	
 	function loadFromFile(e){
@@ -446,6 +724,7 @@ tres</textarea>
 			wordListTA.value = event.target.result;
 			saveWords();
 			words = loadWords();
+			usedWords = [];
 			toast("Loaded " + words.length + " words from file!");
 			setWord(randomWord());
 		};
@@ -458,9 +737,21 @@ tres</textarea>
 	fileInput.addEventListener('change', loadFromFile);
 
 	let words = loadWords();
+	let usedWords = [];
+	
 	function randomWord(){ 
 		if(words.length===0){words=["gato"];} 
-		return words[Math.floor(Math.random()*words.length)]; 
+		
+		if (usedWords.length >= words.length) {
+			usedWords = [];
+			console.log('All words used, resetting list');
+		}
+		
+		const availableWords = words.filter(w => !usedWords.includes(w));
+		const word = availableWords[Math.floor(Math.random() * availableWords.length)];
+		usedWords.push(word);
+		
+		return word;
 	}
 	
 	function setWord(w){ 
@@ -476,148 +767,130 @@ tres</textarea>
 		if (displayMode === 'pictogram') {
 			wordEl.style.display = 'none';
 			pictogramEl.style.display = 'block';
-			fetchPictogram(word);
+			fetchPictogramFromAPI(word);
 		} else {
 			wordEl.style.display = 'block';
 			pictogramEl.style.display = 'none';
 		}
 	}
 	
-	// Fetch pictogram from ARASAAC API - using first result always
-	async function fetchPictogram(word) {
-		pictogramEl.innerHTML = '<div style="color: var(--muted);">Loading pictogram...</div>';
+	// Fetch pictogram using ARASAAC API with bestsearch (with caching and rate limiting)
+	const pictogramCache = new Map();
+	let lastAPICall = 0;
+	const API_DELAY = 500; // Minimum 500ms between API calls
+	
+	async function fetchPictogramFromAPI(word) {
+		pictogramEl.innerHTML = '<div>Loading pictogram...</div>';
 		
 		try {
-			const cleanWord = word.toLowerCase().trim().normalize("NFD").replace(/\p{Diacritic}/gu,"");
+			const cleanWord = word.toLowerCase().trim();
 			
-			// Corrected ARASAAC IDs based on their website
-			const wordToId = {
-				// Animals - verified IDs
-				'gato': 7114,  // cat (corrected)
-				'perro': 2517, // dog  
-				'raton': 2394, // mouse
-				'ratón': 2394, // mouse
-				'elefante': 7209, // elephant
-				'león': 29584, // lion
-				'leon': 29584, // lion
-				'tigre': 7350, // tiger
-				'oso': 2395, // bear
-				'conejo': 2392, // rabbit
-				'pájaro': 9652, // bird
-				'pajaro': 9652, // bird
-				'pez': 2426, // fish
-				'vaca': 7377, // cow
-				'caballo': 7282, // horse
-				'cerdo': 7225, // pig
-				'oveja': 7233, // sheep
-				'pollo': 7235, // chicken
-				'pato': 7162, // duck
-				
-				// Objects/Places
-				'casa': 2433, // house
-				'castillo': 37166, // castle
-				'escuela': 2670, // school
-				'árbol': 5678, // tree
-				'arbol': 5678, // tree
-				'sol': 2435, // sun
-				'luna': 5720, // moon
-				'estrella': 5719, // star
-				'agua': 2244, // water
-				'fuego': 6039, // fire
-				'coche': 2446, // car
-				'libro': 2390, // book
-				'mesa': 2389, // table
-				'silla': 2632, // chair
-				'cama': 6036, // bed
-				'puerta': 7324, // door
-				'ventana': 7378, // window
-				'pelota': 7298, // ball
-				'juguete': 5746, // toy
-				
-				// Numbers
-				'uno': 9783,
-				'dos': 9788,
-				'tres': 9824,
-				'cuatro': 9763,
-				'cinco': 9759,
-				'seis': 9817,
-				'siete': 9818,
-				'ocho': 9800,
-				'nueve': 9799,
-				'diez': 9767,
-				
-				// Add more as needed...
-			};
-			
-			// Try to find the word in our mapping
-			let pictogramId = wordToId[cleanWord];
-			
-			// If not found, try some variations
-			if (!pictogramId) {
-				// Try without final 's' for plurals
-				if (cleanWord.endsWith('s')) {
-					const singular = cleanWord.slice(0, -1);
-					pictogramId = wordToId[singular];
-				}
+			// Check cache first
+			if (pictogramCache.has(cleanWord)) {
+				const cachedId = pictogramCache.get(cleanWord);
+				displayPictogram(cachedId, word);
+				return;
 			}
 			
-			// If we found a pictogram ID, display it
-			if (pictogramId) {
-				const imgUrl = `https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true`;
-				console.log('Loading pictogram for "' + word + '" with ID:', pictogramId);
-				
-				pictogramEl.innerHTML = `
-					<img src="${imgUrl}" 
-						 alt="${word}" 
-						 style="max-width: 200px; height: auto; border-radius: 8px; border: 2px solid #1c2432;">
-				`;
-			} else {
-				// Use emoji fallback
-				const emojiMap = {
-					'gato': '🐱',
-					'perro': '🐕',
-					'ratón': '🐭',
-					'raton': '🐭',
-					'elefante': '🐘',
-					'casa': '🏠',
-					'castillo': '🏰',
-					'sol': '☀️',
-					'luna': '🌙',
-					'estrella': '⭐',
-					'árbol': '🌳',
-					'arbol': '🌳',
-					'agua': '💧',
-					'fuego': '🔥',
-					'coche': '🚗',
-					'libro': '📚',
-					'pelota': '⚽',
-					'uno': '1️⃣',
-					'dos': '2️⃣',
-					'tres': '3️⃣',
-					'cuatro': '4️⃣',
-					'cinco': '5️⃣',
-					'seis': '6️⃣',
-					'siete': '7️⃣',
-					'ocho': '8️⃣',
-					'nueve': '9️⃣',
-					'diez': '🔟'
-				};
-				
-				const emoji = emojiMap[cleanWord];
-				if (emoji) {
-					pictogramEl.innerHTML = `<div style="font-size: 120px; line-height: 1;">${emoji}</div>`;
-				} else {
-					pictogramEl.innerHTML = `
-						<div style="font-size: 48px; font-weight: bold; color: var(--fg);">
-							${word}
-						</div>
-						<div style="color: var(--muted); font-size: 12px; margin-top: 10px;">No pictogram available</div>
-					`;
-				}
+			// Rate limiting - wait if needed
+			const now = Date.now();
+			const timeSinceLastCall = now - lastAPICall;
+			if (timeSinceLastCall < API_DELAY) {
+				await new Promise(resolve => setTimeout(resolve, API_DELAY - timeSinceLastCall));
 			}
+			lastAPICall = Date.now();
+			
+			// Try using a CORS proxy for the API call
+			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			const apiUrl = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(cleanWord)}`;
+			
+			try {
+				const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
+				
+				if (response.ok) {
+					const items = await response.json();
+					
+					if (items && items.length > 0) {
+						// Use the first result
+						const pictogramId = items[0]._id || items[0].id;
+						pictogramCache.set(cleanWord, pictogramId);
+						displayPictogram(pictogramId, word);
+						return;
+					}
+				}
+			} catch (e) {
+				console.log('API call failed, using fallback');
+			}
+			
+			// Use fallback if API fails
+			useFallbackPictogram(cleanWord, word);
+			
 		} catch (error) {
 			console.error('Error loading pictogram:', error);
-			pictogramEl.innerHTML = '<div style="color: var(--muted); font-size: 12px;">Could not load pictogram</div>';
+			pictogramEl.innerHTML = `<div style="font-size: 48px; font-weight: bold;">${word}</div>`;
+		}
+	}
+	
+	function displayPictogram(pictogramId, word) {
+		currentPictogramId = pictogramId;
+		
+		// Direct PNG URL (500px version)
+		const imgUrl = `https://static.arasaac.org/pictograms/${pictogramId}/${pictogramId}_500.png`;
+		
+		pictogramEl.innerHTML = `
+			<img src="${imgUrl}" 
+				 alt="${word}" 
+				 onerror="this.onerror=null; this.src='https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true';">
+		`;
+		
+		console.log(`Loaded pictogram for "${word}" with ID: ${pictogramId}`);
+	}
+	
+	function useFallbackPictogram(cleanWord, word) {
+		// Fallback to hardcoded IDs if API fails
+		const fallbackIds = {
+			'gato': 7114,
+			'perro': 2517,
+			'ratón': 2546,
+			'raton': 2546,
+			'castillo': 5421,
+			'elefante': 2372,
+			'tres': 2629,
+			'casa': 2433,
+			'sol': 2435,
+			'luna': 2411,
+			'agua': 2244,
+			'árbol': 2418,
+			'arbol': 2418,
+			'libro': 2390,
+			'mesa': 2412,
+			'silla': 2632,
+			'coche': 2446,
+			'uno': 2627,
+			'dos': 2628,
+			'cuatro': 2630,
+			'cinco': 2631
+		};
+		
+		const fallbackId = fallbackIds[cleanWord];
+		if (fallbackId) {
+			pictogramCache.set(cleanWord, fallbackId);
+			displayPictogram(fallbackId, word);
+		} else {
+			// Show emoji or text fallback
+			const emojiMap = {
+				'gato': '🐱', 'perro': '🐕', 'ratón': '🐭', 'elefante': '🐘',
+				'casa': '🏠', 'castillo': '🏰', 'sol': '☀️', 'luna': '🌙',
+				'estrella': '⭐', 'árbol': '🌳', 'agua': '💧', 'fuego': '🔥',
+				'coche': '🚗', 'libro': '📚', 'pelota': '⚽'
+			};
+			
+			const emoji = emojiMap[cleanWord];
+			if (emoji) {
+				pictogramEl.innerHTML = `<div style="font-size: 120px;">${emoji}</div>`;
+			} else {
+				pictogramEl.innerHTML = `<div style="font-size: 48px; font-weight: bold;">${word}</div>`;
+			}
 		}
 	}
 
@@ -634,7 +907,6 @@ tres</textarea>
 	
 	function megaCelebrate(){
 		if (typeof confetti === 'function') {
-			// Multiple bursts for big milestone
 			const count = 200;
 			const defaults = { origin: { y: 0.7 } };
 			
@@ -663,11 +935,9 @@ tres</textarea>
 	}
 	
 	function updateStars() {
-		// Show stars for correct words (last 10)
 		const recentStars = correctWords.slice(-10).map(() => '⭐').join('');
 		starsEl.innerHTML = recentStars;
 		
-		// Animate new star
 		if (correctWords.length > 0) {
 			starsEl.style.animation = 'none';
 			setTimeout(() => {
@@ -683,10 +953,8 @@ tres</textarea>
 			correctWords.push(wordEl.textContent);
 			updateStars();
 			
-			// Play sound
 			playCorrectSound();
 			
-			// Check for milestones with big number display
 			if (streak === 3) {
 				toast("🎉 3 in a row! Great job!");
 				celebrate();
@@ -715,7 +983,7 @@ tres</textarea>
 	function toast(msg){
 		const el = document.createElement('div');
 		el.textContent = msg;
-		el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:var(--fg);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
+		el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:white;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
 		document.body.appendChild(el);
 		setTimeout(()=> el.remove(), 2000);
 	}
@@ -731,15 +999,12 @@ tres</textarea>
 		try {
 			let decodedText = null;
 
-			// Try native BarcodeDetector first
 			if (barcodeDetector) {
 				const barcodes = await barcodeDetector.detect(canvas);
 				if (barcodes.length > 0) {
 					decodedText = barcodes[0].rawValue;
 				}
-			} 
-			// Fall back to jsQR
-			else if (typeof jsQR !== 'undefined') {
+			} else if (typeof jsQR !== 'undefined') {
 				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 				const code = jsQR(imageData.data, imageData.width, imageData.height);
 				if (code) {
@@ -758,10 +1023,9 @@ tres</textarea>
 					statusEl.className = "status ok";
 					celebrate();
 					
-					// Move to next word after a short delay, keep camera running
 					setTimeout(() => {
 						setWord(randomWord());
-						lastText = null; // Reset so we can scan the same QR for a different word
+						lastText = null;
 					}, 1000);
 				} else {
 					statusEl.textContent = "✖ Not matched: " + decodedText;
@@ -780,7 +1044,6 @@ tres</textarea>
 		try {
 			errEl.textContent = "";
 			
-			// Always use back camera (environment)
 			const constraints = {
 				video: {
 					facingMode: 'environment',
@@ -789,7 +1052,6 @@ tres</textarea>
 				}
 			};
 
-			// Stop any existing stream first
 			if (stream) {
 				stream.getTracks().forEach(track => track.stop());
 				stream = null;
@@ -805,7 +1067,6 @@ tres</textarea>
 			stopBtn.disabled = false;
 			nextBtn.disabled = true;
 
-			// Start scanning
 			if (scanInterval) clearInterval(scanInterval);
 			scanInterval = setInterval(scanFrame, 100);
 			
@@ -813,16 +1074,14 @@ tres</textarea>
 			let errorMsg = "Camera error: " + (err.message || err);
 			
 			if (err.name === 'NotAllowedError') {
-				errorMsg = `📷 Camera blocked. To fix: Click the lock icon in your address bar → Set Camera to "Allow" → Refresh page`;
+				errorMsg = `📷 Camera blocked. Click the lock icon in address bar → Camera → Allow → Refresh`;
 			} else if (err.name === 'NotFoundError') {
-				errorMsg = "No camera detected on this device";
+				errorMsg = "No camera detected";
 			} else if (err.name === 'NotReadableError') {
-				errorMsg = "Camera is being used by another app. Close other apps using the camera.";
-			} else if (err.name === 'OverconstrainedError') {
-				errorMsg = "Back camera not available.";
+				errorMsg = "Camera is in use by another app";
 			}
 			
-			errEl.innerHTML = errorMsg;
+			errEl.textContent = errorMsg;
 			scanning = false;
 			startBtn.disabled = false;
 			stopBtn.disabled = true;
