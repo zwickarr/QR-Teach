@@ -301,7 +301,16 @@ tres</textarea>
 					statusEl.textContent = "✓ Correct: " + decodedText;
 					statusEl.className = "status ok";
 					celebrate();
-					setTimeout(() => setWord(randomWord()), 900);
+					
+					// Stop scanning after correct match
+					stop();
+					
+					// Automatically show next word after a delay
+					setTimeout(() => {
+						setWord(randomWord());
+						statusEl.textContent = "Press Start to scan for the new word";
+						statusEl.className = "status";
+					}, 1500);
 				} else {
 					statusEl.textContent = "✖ Not matched: " + decodedText;
 					statusEl.className = "status bad";
