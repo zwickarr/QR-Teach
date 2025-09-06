@@ -67,6 +67,29 @@
 			0% { top: 0; }
 			100% { top: calc(100% - 2px); }
 		}
+		@keyframes pulse {
+			0%, 100% { transform: scale(1); }
+			50% { transform: scale(1.2); }
+		}
+		
+		#stars { 
+			text-align: center; 
+			font-size: 28px; 
+			min-height: 35px;
+			animation-duration: 0.5s;
+			animation-timing-function: ease-in-out;
+		}
+		#pictogram {
+			text-align: center;
+			margin: 10px 0;
+			min-height: 100px;
+		}
+		#muteBtn {
+			font-size: 20px;
+			padding: 8px 12px;
+			background: #1a2230;
+			min-width: 50px;
+		}
 		
 		.small { color: var(--muted); font-size: 12px; }
 		.row { display: flex; gap: 8px; flex-wrap: wrap; align-items:center; }
@@ -88,6 +111,7 @@
 					<button id="startBtn">Start camera</button>
 					<button id="stopBtn" disabled>Stop</button>
 					<button id="nextBtn">New word</button>
+					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
 					<div class="toggle" title="Camera selection">
@@ -98,9 +122,15 @@
 						<option value="exact" selected>Exact match</option>
 						<option value="loose">Ignore accents & case</option>
 					</select>
+					<label style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted);">
+						<input type="checkbox" id="showPictograms" checked>
+						<span>Show pictograms</span>
+					</label>
 				</div>
 			</div>
 			<div id="currentWord" class="word" aria-live="polite">gato</div>
+			<div id="pictogram"></div>
+			<div id="stars"></div>
 			<div class="status" id="status"></div>
 			
 			<div id="videoContainer" style="display:none;">
@@ -123,14 +153,15 @@
 					• First time? Click "Allow" when browser asks for camera permission<br>
 					• Blocked before? Click lock icon in address bar → Camera → Allow → Refresh<br>
 					• On iPhone? Use Safari (Chrome on iOS doesn't support cameras well)<br>
-					• Still stuck? Try switching between Front/Back options
+					• Camera stuck? Try Stop then Start again<br>
+					• Still stuck? Refresh the page
 				</div>
 			</details>
 		</div>
 
 		<div class="card">
 			<strong>Word list</strong>
-			<p class="small">Edit below to customize. One word per line.</p>
+			<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
 			<textarea id="wordList" rows="6" style="width:100%; background:#0f1520; color:var(--fg); border:1px solid #25324a; border-radius:10px; padding:10px; font-size:15px;">gato
 ratón
 castillo
@@ -160,7 +191,7 @@ tres</textarea>
 			</details>
 		</div>
 	</main>
-	<footer><span class="small">Use over HTTPS for camera access. Using native camera API.</span></footer>
+	<footer><span class="small">Use over HTTPS for camera access. Using native camera API with sound & pictograms.</span></footer>
 
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -174,6 +205,7 @@ tres</textarea>
 	const startBtn = document.getElementById('startBtn');
 	const stopBtn = document.getElementById('stopBtn');
 	const nextBtn = document.getElementById('nextBtn');
+	const muteBtn = document.getElementById('muteBtn');
 	const modeSel = document.getElementById('mode');
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
@@ -188,16 +220,79 @@ tres</textarea>
 	const canvas = document.getElementById('canvas');
 	const ctx = canvas.getContext('2d');
 	const videoContainer = document.getElementById('videoContainer');
+	const starsEl = document.getElementById('stars');
+	const pictogramEl = document.getElementById('pictogram');
+	const showPictogramsCheck = document.getElementById('showPictograms');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
 	const LS_CAMERA = "qr-word-game:camera";
+	const LS_MUTED = "qr-word-game:muted";
 	let stream = null;
 	let scanning = false;
 	let score = 0, streak = 0;
 	let lastText = null;
 	let scanInterval = null;
 	let barcodeDetector = null;
+	let isMuted = localStorage.getItem(LS_MUTED) === 'true';
+	let audioContext = null;
+	let correctWords = [];
+	
+	// Initialize mute button
+	muteBtn.textContent = isMuted ? '🔇' : '🔊';
+	
+	// Sound generation
+	function initAudio() {
+		if (!audioContext) {
+			audioContext = new (window.AudioContext || window.webkitAudioContext)();
+		}
+	}
+	
+	function playSound(frequency, duration, type = 'sine') {
+		if (isMuted) return;
+		
+		try {
+			initAudio();
+			const oscillator = audioContext.createOscillator();
+			const gainNode = audioContext.createGain();
+			
+			oscillator.connect(gainNode);
+			gainNode.connect(audioContext.destination);
+			
+			oscillator.type = type;
+			oscillator.frequency.value = frequency;
+			
+			gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+			gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+			
+			oscillator.start(audioContext.currentTime);
+			oscillator.stop(audioContext.currentTime + duration);
+		} catch(e) {
+			console.log('Audio not available');
+		}
+	}
+	
+	function playCorrectSound() {
+		// Pleasant ascending tones
+		setTimeout(() => playSound(523, 0.1), 0);    // C
+		setTimeout(() => playSound(659, 0.1), 100);  // E
+		setTimeout(() => playSound(784, 0.2), 200);  // G
+	}
+	
+	function playMilestoneSound() {
+		// Fanfare sound
+		setTimeout(() => playSound(523, 0.1), 0);    // C
+		setTimeout(() => playSound(659, 0.1), 100);  // E
+		setTimeout(() => playSound(784, 0.1), 200);  // G
+		setTimeout(() => playSound(1047, 0.3), 300); // High C
+	}
+	
+	muteBtn.addEventListener('click', () => {
+		isMuted = !isMuted;
+		muteBtn.textContent = isMuted ? '🔇' : '🔊';
+		localStorage.setItem(LS_MUTED, isMuted.toString());
+		toast(isMuted ? 'Sound muted' : 'Sound enabled');
+	});
 
 	// Check for native BarcodeDetector support
 	if ('BarcodeDetector' in window) {
@@ -213,27 +308,102 @@ tres</textarea>
 	function loadWords(){
 		const saved = localStorage.getItem(LS_KEY);
 		if(saved) wordListTA.value = saved;
-		return wordListTA.value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean);
+		// Remove duplicates (case-insensitive) and empty lines
+		const lines = wordListTA.value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean);
+		const seen = new Set();
+		return lines.filter(word => {
+			const lower = word.toLowerCase();
+			if (seen.has(lower)) return false;
+			seen.add(lower);
+			return true;
+		});
 	}
 	
 	function saveWords(){
 		localStorage.setItem(LS_KEY, wordListTA.value);
 		words = loadWords();
-		toast("Saved!");
+		toast("Saved " + words.length + " words!");
 	}
 	
 	function downloadWords(){
 		const text = wordListTA.value;
-		const blob = new Blob([text], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'word-list.txt';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-		toast("Downloaded word list!");
+		const timestamp = new Date().toISOString().slice(0, 10);
+		const filename = `qr-words-${timestamp}.txt`;
+		
+		// Check if Web Share API is available (works on mobile)
+		if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+			// Create a blob and file for sharing
+			const blob = new Blob([text], { type: 'text/plain' });
+			const file = new File([blob], filename, { type: 'text/plain' });
+			
+			// Use Web Share API to let user choose where to save/share
+			navigator.share({
+				files: [file],
+				title: 'QR Word List',
+				text: 'Word list for QR matching game'
+			}).then(() => {
+				toast("Shared successfully!");
+			}).catch(err => {
+				// If share fails, fall back to other method
+				if (err.name !== 'AbortError') {
+					fallbackDownload(text, filename);
+				}
+			});
+		} else {
+			fallbackDownload(text, filename);
+		}
+	}
+	
+	function fallbackDownload(text, filename) {
+		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+		
+		if (isIOS) {
+			// For iOS: Create a data URL and open in new tab
+			const dataUrl = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+			const newWindow = window.open();
+			newWindow.document.write(`
+				<html>
+				<head>
+					<title>${filename}</title>
+					<meta name="viewport" content="width=device-width, initial-scale=1">
+					<style>
+						body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; margin: 0; }
+						.instructions { margin-bottom: 20px; padding: 15px; background: #007AFF; color: white; border-radius: 10px; }
+						.content { padding: 15px; border: 1px solid #ccc; background: white; border-radius: 10px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
+						button { background: #007AFF; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 16px; margin: 10px 5px; }
+					</style>
+				</head>
+				<body>
+				<div class="instructions">
+					<strong style="font-size: 18px;">Save your word list:</strong><br><br>
+					1. Tap the <strong>Share button</strong> ⬆️ (square with arrow)<br>
+					2. Choose where to save:<br>
+					   • <strong>Save to Files</strong> → Pick any folder<br>
+					   • <strong>Notes</strong> → Save as a note<br>
+					   • <strong>AirDrop</strong> → Send to nearby device<br>
+					   • <strong>Mail/Messages</strong> → Send to someone<br><br>
+					Or: <button onclick="navigator.clipboard.writeText(document.querySelector('.content').innerText).then(() => alert('Copied to clipboard!'))">Copy All Text</button>
+				</div>
+				<div class="content">${text}</div>
+				</body>
+				</html>
+			`);
+		} else {
+			// For desktop/Android: Use normal download
+			const blob = new Blob([text], { type: 'text/plain' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			a.style.display = 'none';
+			document.body.appendChild(a);
+			a.click();
+			setTimeout(() => {
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}, 100);
+			toast("Check your Downloads folder for: " + filename);
+		}
 	}
 	
 	function loadFromFile(e){
@@ -263,11 +433,230 @@ tres</textarea>
 	}
 	
 	function setWord(w){ 
-		wordEl.textContent=w; 
-		statusEl.textContent=""; 
-		statusEl.className="status";
+		wordEl.textContent = w; 
+		statusEl.textContent = ""; 
+		statusEl.className = "status";
 		lastText = null;
+		
+		// Fetch pictogram from ARASAAC
+		if (showPictogramsCheck.checked) {
+			fetchPictogram(w);
+		} else {
+			pictogramEl.innerHTML = '';
+		}
 	}
+	
+	// Fetch pictogram from ARASAAC API
+	async function fetchPictogram(word) {
+		pictogramEl.innerHTML = '<div style="color: var(--muted);">Loading pictogram...</div>';
+		
+		try {
+			const cleanWord = word.toLowerCase().trim().normalize("NFD").replace(/\p{Diacritic}/gu,"");
+			
+			// Since the API has CORS issues, we'll use a mapping of common words to their known IDs
+			// These IDs are from the ARASAAC database
+			const wordToId = {
+				// Animals
+				'gato': 2391,
+				'perro': 2517,
+				'raton': 6079,
+				'ratón': 6079,
+				'elefante': 35669,
+				'león': 35671,
+				'leon': 35671,
+				'tigre': 35670,
+				'oso': 2519,
+				'conejo': 7148,
+				'pájaro': 8969,
+				'pajaro': 8969,
+				'pez': 6086,
+				'vaca': 2518,
+				'caballo': 7282,
+				'cerdo': 7225,
+				'oveja': 7233,
+				'pollo': 6001,
+				'pato': 7162,
+				
+				// Objects/Places
+				'casa': 6321,
+				'castillo': 7296,
+				'escuela': 2435,
+				'árbol': 5678,
+				'arbol': 5678,
+				'sol': 5825,
+				'luna': 7011,
+				'estrella': 35831,
+				'agua': 2513,
+				'fuego': 7394,
+				'coche': 5501,
+				'libro': 2449,
+				'mesa': 2497,
+				'silla': 2632,
+				'cama': 6295,
+				'puerta': 11369,
+				'ventana': 11374,
+				'pelota': 2433,
+				'juguete': 6195,
+				
+				// Numbers
+				'uno': 10266,
+				'dos': 10267,
+				'tres': 10268,
+				'cuatro': 10269,
+				'cinco': 10270,
+				'seis': 10271,
+				'siete': 10272,
+				'ocho': 10273,
+				'nueve': 10274,
+				'diez': 10265,
+				
+				// Food
+				'manzana': 5810,
+				'plátano': 5811,
+				'platano': 5811,
+				'pan': 5836,
+				'leche': 5857,
+				'queso': 31126,
+				'huevo': 5841,
+				'arroz': 5847,
+				'pasta': 5848,
+				
+				// Colors
+				'rojo': 2612,
+				'azul': 2615,
+				'verde': 2618,
+				'amarillo': 2611,
+				'negro': 2617,
+				'blanco': 2616,
+				'rosa': 11473,
+				'naranja': 2613,
+				'morado': 11476,
+				'gris': 2619,
+				
+				// Actions
+				'comer': 6329,
+				'beber': 2442,
+				'dormir': 6341,
+				'correr': 6325,
+				'saltar': 6348,
+				'jugar': 2461,
+				'leer': 2464,
+				'escribir': 6334,
+				'cantar': 2456,
+				'bailar': 6318,
+				
+				// People/Family
+				'mamá': 7031,
+				'mama': 7031,
+				'papá': 7029,
+				'papa': 7029,
+				'niño': 2488,
+				'niña': 2487,
+				'nina': 2487,
+				'bebé': 2485,
+				'bebe': 2485,
+				'abuelo': 7035,
+				'abuela': 7037,
+				'hermano': 7039,
+				'hermana': 7041,
+				'amigo': 7063,
+				'amiga': 7065,
+				'profesor': 2502,
+				'profesora': 6267,
+				'doctor': 7533,
+				'doctora': 7535
+			};
+			
+			// Try to find the word in our mapping
+			let pictogramId = wordToId[cleanWord];
+			
+			// If not found, try some variations
+			if (!pictogramId) {
+				// Try without final 's' for plurals
+				if (cleanWord.endsWith('s')) {
+					const singular = cleanWord.slice(0, -1);
+					pictogramId = wordToId[singular];
+				}
+				// Try adding common endings
+				if (!pictogramId) {
+					pictogramId = wordToId[cleanWord + 'o'] || wordToId[cleanWord + 'a'];
+				}
+			}
+			
+			// If we found a pictogram ID, display it
+			if (pictogramId) {
+				// The ARASAAC API endpoint works without CORS for direct image access
+				// Format: https://api.arasaac.org/v1/pictograms/{id}?download=false
+				const imgUrl = `https://api.arasaac.org/v1/pictograms/${pictogramId}?download=false&color=true`;
+				console.log('Loading pictogram for "' + word + '" with ID:', pictogramId);
+				
+				// Directly set the image - the API endpoint serves images directly
+				pictogramEl.innerHTML = `
+					<img src="${imgUrl}" 
+						 alt="${word}" 
+						 style="max-width: 150px; height: auto; border-radius: 8px; border: 2px solid #1c2432;"
+						 onerror="this.parentElement.innerHTML='<div style=\\'color: var(--muted); font-size: 12px;\\'>Could not load image for ${word}</div>';">
+				`;
+				
+			} else {
+				// Try using emojis as fallback for common words
+				const emojiMap = {
+					'gato': '🐱',
+					'perro': '🐕',
+					'ratón': '🐭',
+					'raton': '🐭',
+					'elefante': '🐘',
+					'casa': '🏠',
+					'castillo': '🏰',
+					'sol': '☀️',
+					'luna': '🌙',
+					'estrella': '⭐',
+					'árbol': '🌳',
+					'arbol': '🌳',
+					'agua': '💧',
+					'fuego': '🔥',
+					'coche': '🚗',
+					'libro': '📚',
+					'pelota': '⚽',
+					'manzana': '🍎',
+					'plátano': '🍌',
+					'platano': '🍌',
+					'uno': '1️⃣',
+					'dos': '2️⃣',
+					'tres': '3️⃣',
+					'cuatro': '4️⃣',
+					'cinco': '5️⃣'
+				};
+				
+				const emoji = emojiMap[cleanWord];
+				if (emoji) {
+					pictogramEl.innerHTML = `
+						<div style="font-size: 80px; line-height: 1;">${emoji}</div>
+						<div style="color: var(--muted); font-size: 10px; margin-top: 8px;">Emoji placeholder</div>
+					`;
+				} else {
+					pictogramEl.innerHTML = `
+						<div style="color: var(--muted); font-size: 12px;">
+							No pictogram for "${word}"<br>
+							<span style="font-size: 10px;">Using text only</span>
+						</div>
+					`;
+				}
+			}
+			
+		} catch (error) {
+			console.error('Error loading pictogram:', error);
+			pictogramEl.innerHTML = '<div style="color: var(--muted); font-size: 12px;">Could not load pictogram</div>';
+		}
+	}
+	
+	showPictogramsCheck.addEventListener('change', () => {
+		if (showPictogramsCheck.checked) {
+			fetchPictogram(wordEl.textContent);
+		} else {
+			pictogramEl.innerHTML = '';
+		}
+	});
 
 	function normalize(s){
 		if(modeSel.value==="exact") return s.trim();
@@ -280,10 +669,68 @@ tres</textarea>
 		}
 	}
 	
+	function megaCelebrate(){
+		if (typeof confetti === 'function') {
+			// Multiple bursts for big milestone
+			const count = 200;
+			const defaults = { origin: { y: 0.7 } };
+			
+			function fire(particleRatio, opts) {
+				confetti({
+					...defaults,
+					...opts,
+					particleCount: Math.floor(count * particleRatio)
+				});
+			}
+			
+			fire(0.25, { spread: 26, startVelocity: 55 });
+			fire(0.2, { spread: 60 });
+			fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+			fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+			fire(0.1, { spread: 120, startVelocity: 45 });
+		}
+	}
+	
+	function updateStars() {
+		// Show stars for correct words (last 10)
+		const recentStars = correctWords.slice(-10).map(() => '⭐').join('');
+		starsEl.innerHTML = recentStars;
+		
+		// Animate new star
+		if (correctWords.length > 0) {
+			starsEl.style.animation = 'none';
+			setTimeout(() => {
+				starsEl.style.animation = 'pulse 0.5s ease-in-out';
+			}, 10);
+		}
+	}
+	
 	function updateScore(ok){
 		if(ok){ 
 			score += 1; 
-			streak += 1; 
+			streak += 1;
+			correctWords.push(wordEl.textContent);
+			updateStars();
+			
+			// Play sound
+			playCorrectSound();
+			
+			// Check for milestones
+			if (streak === 3) {
+				toast("🎉 3 in a row! Great job!");
+				celebrate();
+			} else if (streak === 10) {
+				toast("🏆 10 STREAK! AMAZING!");
+				megaCelebrate();
+				playMilestoneSound();
+			} else if (streak === 20) {
+				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
+				megaCelebrate();
+				playMilestoneSound();
+			} else if (streak % 5 === 0 && streak > 0) {
+				toast(`🔥 ${streak} streak! Keep going!`);
+				celebrate();
+			}
 		} else { 
 			streak = 0; 
 		}
@@ -296,7 +743,7 @@ tres</textarea>
 		el.textContent = msg;
 		el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111722;border:1px solid #1c2432;padding:8px 12px;border-radius:999px;color:var(--fg);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:9999";
 		document.body.appendChild(el);
-		setTimeout(()=> el.remove(), 1200);
+		setTimeout(()=> el.remove(), 2000);
 	}
 
 	function getCamera(){
@@ -311,10 +758,12 @@ tres</textarea>
 	}
 	
 	cameraRadios.forEach(r => r.addEventListener('change', async () => {
-		localStorage.setItem(LS_CAMERA, getCamera());
+		const newCamera = getCamera();
+		localStorage.setItem(LS_CAMERA, newCamera);
 		if (scanning) { 
+			// Restart with new camera
 			await stop(); 
-			await start(); 
+			setTimeout(() => start(), 100); // Small delay to ensure clean switch
 		}
 	}));
 
@@ -377,13 +826,22 @@ tres</textarea>
 		try {
 			errEl.textContent = "";
 			
+			// Get the selected camera mode
+			const cameraMode = getCamera();
+			
 			const constraints = {
 				video: {
-					facingMode: getCamera(),
+					facingMode: cameraMode,
 					width: { ideal: 1280 },
 					height: { ideal: 720 }
 				}
 			};
+
+			// Stop any existing stream first
+			if (stream) {
+				stream.getTracks().forEach(track => track.stop());
+				stream = null;
+			}
 
 			stream = await navigator.mediaDevices.getUserMedia(constraints);
 			video.srcObject = stream;
@@ -396,6 +854,7 @@ tres</textarea>
 			nextBtn.disabled = true;
 
 			// Start scanning
+			if (scanInterval) clearInterval(scanInterval);
 			scanInterval = setInterval(scanFrame, 100);
 			
 		} catch (err) {
@@ -407,6 +866,8 @@ tres</textarea>
 				errorMsg = "No camera detected on this device";
 			} else if (err.name === 'NotReadableError') {
 				errorMsg = "Camera is being used by another app. Close other apps using the camera.";
+			} else if (err.name === 'OverconstrainedError') {
+				errorMsg = "Camera not available. Try the other camera option.";
 			}
 			
 			errEl.innerHTML = errorMsg;
@@ -418,6 +879,8 @@ tres</textarea>
 
 	async function stop() {
 		if (!scanning) return;
+		
+		scanning = false;
 		
 		if (scanInterval) {
 			clearInterval(scanInterval);
@@ -431,7 +894,6 @@ tres</textarea>
 		
 		video.srcObject = null;
 		videoContainer.style.display = 'none';
-		scanning = false;
 		startBtn.disabled = false;
 		stopBtn.disabled = true;
 		nextBtn.disabled = false;
