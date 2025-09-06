@@ -362,17 +362,13 @@
 		<div class="card">
 			<div class="row" style="justify-content:space-between;">
 				<div class="row">
-					<button id="startBtn">Start camera</button>
-					<button id="stopBtn" disabled>Stop</button>
+					<button id="startBtn">📷 Start</button>
+					<button id="stopBtn" disabled>📷 Stop</button>
 					<button id="nextBtn">New word</button>
 					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
-					<select id="mode">
-						<option value="exact" selected>Exact match</option>
-						<option value="loose">Ignore accents & case</option>
-					</select>
-					<div class="toggle" title="Display mode">
+<div class="toggle" title="Display mode">
 						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
 						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
 					</div>
@@ -419,8 +415,19 @@ castillo
 elefante
 perro
 tres</textarea>
+
+                <div class="row" style="margin-top: 10px; align-items: center;">
+                    <span class="tag" title="How words are matched">Matching mode</span>
+                    <select id="mode">
+						<option value="exact">Exact match</option>
+						<option value="loose" selected>Ignore accents & case</option>
+					</select>
+                </div>
+    
 				<div class="row" style="margin-top: 10px;">
-					<button id="saveWords">Save list</button>
+					<button id="clearWords" style="background:#ff4d4d;">Clear list</button>
+				<button id="saveWords">Save list</button>
+					<button id="clearWords" style="background:#9b2c2c;">Clear list</button>
 					<button id="downloadWords">Download list</button>
 					<button id="uploadBtn">Load from file</button>
 					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
@@ -477,6 +484,9 @@ tres</textarea>
 	const nextBtn = document.getElementById('nextBtn');
 	const muteBtn = document.getElementById('muteBtn');
 	const modeSel = document.getElementById('mode');
+	// SET DEFAULT MATCH MODE
+	/* SET DEFAULT MATCH MODE */
+	modeSel.value = 'loose';
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
 	const downloadWordsBtn = document.getElementById('downloadWords');
@@ -511,11 +521,65 @@ tres</textarea>
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
 	let currentPictogramId = null;
 	
+	
+	const clearBtn = document.getElementById('clearWords');
+	clearBtn.addEventListener('click', () => {
+		// Create confirmation overlay
+		const overlay = document.createElement('div');
+		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
+		overlay.innerHTML = `
+			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
+				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
+				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
+				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
+			</div>
+		`;
+		document.body.appendChild(overlay);
+
+		// Handle button clicks
+		overlay.querySelector('#confirmYes').addEventListener('click', () => {
+			wordListTA.value = '';
+			toast('Word list cleared!');
+			overlay.remove();
+		});
+		overlay.querySelector('#confirmNo').addEventListener('click', () => {
+			overlay.remove();
+		});
+	});
+
+
 	// Initialize display mode
 	for (const r of displayRadios) {
 		if (r.value === displayMode) r.checked = true;
 	}
 	
+	
+	const clearBtn = document.getElementById('clearWords');
+	clearBtn.addEventListener('click', () => {
+		// Create confirmation overlay
+		const overlay = document.createElement('div');
+		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
+		overlay.innerHTML = `
+			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
+				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
+				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
+				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
+			</div>
+		`;
+		document.body.appendChild(overlay);
+
+		// Handle button clicks
+		overlay.querySelector('#confirmYes').addEventListener('click', () => {
+			wordListTA.value = '';
+			toast('Word list cleared!');
+			overlay.remove();
+		});
+		overlay.querySelector('#confirmNo').addEventListener('click', () => {
+			overlay.remove();
+		});
+	});
+
+
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
@@ -963,10 +1027,29 @@ tres</textarea>
 			score += 1; 
 			streak += 1;
 			correctWords.push(wordEl.textContent);
+			const totalCorrect = correctWords.length;
 			updateStars();
 			
 			playCorrectSound();
 			
+			/* Total-correct milestones */
+			if (totalCorrect === 3) {
+				toast("🎉 3 correct! Great start!");
+				celebrate();
+				showBigNumber(3);
+			} else if (totalCorrect === 10) {
+				toast("🏆 10 correct! Amazing!");
+				megaCelebrate();
+				playMilestoneSound();
+				showBigNumber(10);
+			} else if (totalCorrect === 20) {
+				toast("🌟 20 correct! You're a champion!");
+				megaCelebrate();
+				playMilestoneSound();
+				showBigNumber(20);
+			}
+
+			/* Streak milestones (unchanged) */
 			if (streak === 3) {
 				toast("🎉 3 in a row! Great job!");
 				celebrate();
@@ -1128,8 +1211,47 @@ tres</textarea>
 	stopBtn.addEventListener('click', stop);
 	nextBtn.addEventListener('click', () => setWord(randomWord()));
 
+	
+	const clearBtn = document.getElementById('clearWords');
+	clearBtn.addEventListener('click', () => {
+		// Create confirmation overlay
+		const overlay = document.createElement('div');
+		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;';
+		overlay.innerHTML = `
+			<div style="background:white;padding:20px;border-radius:12px;text-align:center;max-width:300px;">
+				<p style="margin-bottom:20px;font-weight:bold;">Are you sure you want to clear out all words?</p>
+				<button id="confirmYes" style="background:#ff4d4d;color:white;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">Yes</button>
+				<button id="confirmNo" style="background:#ccc;padding:10px 20px;margin:0 10px;border:none;border-radius:8px;cursor:pointer;">No</button>
+			</div>
+		`;
+		document.body.appendChild(overlay);
+
+		// Handle button clicks
+		overlay.querySelector('#confirmYes').addEventListener('click', () => {
+			wordListTA.value = '';
+			toast('Word list cleared!');
+			overlay.remove();
+		});
+		overlay.querySelector('#confirmNo').addEventListener('click', () => {
+			overlay.remove();
+		});
+	});
+
+
 	// Initialize
 	setWord(randomWord());
 	</script>
+
+	<div id="confirmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99999; align-items:center; justify-content:center;">
+		<div role="dialog" aria-modal="true" style="background:#111722; color:#fff; border:1px solid #1c2432; border-radius:16px; padding:20px; width:min(90%, 420px); box-shadow:0 20px 60px rgba(0,0,0,.6);">
+			<div style="font-weight:700; font-size:18px; margin-bottom:8px;">Confirm</div>
+			<p style="margin-bottom:16px;">Are you sure you want to clear out all words?</p>
+			<div style="display:flex; gap:10px; justify-content:flex-end;">
+				<button id="confirmNo" style="background:#2a3548; color:#fff; padding:10px 16px; border-radius:10px;">No</button>
+				<button id="confirmYes" style="background:linear-gradient(135deg,#667eea 0%, #764ba2 100%); color:#fff; padding:10px 16px; border-radius:10px;">Yes</button>
+			</div>
+		</div>
+	</div>
+
 </body>
 </html>
