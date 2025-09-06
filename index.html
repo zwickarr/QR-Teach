@@ -147,12 +147,14 @@ tres</textarea>
 
 	function normalize(s){
 		if(modeSel.value==="exact") return s.trim();
-		return s.normalize("NFD").replace(/\\p{Diacritic}/gu,"").toLowerCase().trim();
+		return s.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
 	}
 	function celebrate(){
-		confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
-		confetti({ particleCount: 60, angle: 120, spread: 55, origin: { y: 0.6, x: 0.2 } });
-		confetti({ particleCount: 60, angle: 60, spread: 55, origin: { y: 0.6, x: 0.8 } });
+		if (typeof confetti === 'function') {
+			confetti({ particleCount: 90, spread: 65, origin: { y: 0.6 } });
+			confetti({ particleCount: 60, angle: 120, spread: 55, origin: { y: 0.6, x: 0.2 } });
+			confetti({ particleCount: 60, angle: 60, spread: 55, origin: { y: 0.6, x: 0.8 } });
+		}
 	}
 	function updateScore(ok){
 		if(ok){ score += 1; streak += 1; } else { streak = 0; }
@@ -172,15 +174,18 @@ tres</textarea>
 		if (saved) { for (const r of faceRadios) if (r.value===saved) r.checked=true; }
 		const r = Array.from(faceRadios).find(r=>r.checked); return r? r.value : "environment";
 	}
-	faceRadios.forEach(r=> r.addEventListener('change', () => {
-		localStorage.setItem(LS_FACE', getFacing());
-		if (scanning) { stop(); start(); }
+	faceRadios.forEach(r=> r.addEventListener('change', async () => {
+		localStorage.setItem(LS_FACE, getFacing());
+		if (scanning) { 
+			await stop(); 
+			await start(); 
+		}
 	}));
 
 	async function enumerateCameras(){
 		try{
 			const cams = await Html5Qrcode.getCameras();
-			cameraSel.innerHTML = "";
+			cameraSel.innerHTML = '<option value="">(choose camera)</option>';
 			for (const c of cams) {
 				const opt = document.createElement("option");
 				opt.value = c.id;
@@ -192,7 +197,7 @@ tres</textarea>
 			const saved = localStorage.getItem(LS_CAM);
 			if (saved && [...cameraSel.options].some(o => o.value === saved)) cameraSel.value = saved;
 			else {
-				const back = cams.find(c => /\\b(back|rear|environment)\\b/i.test(c.label||""));
+				const back = cams.find(c => /\b(back|rear|environment)\b/i.test(c.label||""));
 				if (back) cameraSel.value = back.id;
 			}
 			if (!cameraSel.value && cams[0]) cameraSel.value = cams[0].id;
@@ -208,7 +213,7 @@ tres</textarea>
 		const ok = normalize(decodedText) === normalize(wordEl.textContent);
 		updateScore(ok);
 		if (ok){
-			statusEl.textContent = "✔ Correct: " + decodedText;
+			statusEl.textContent = "✓ Correct: " + decodedText;
 			statusEl.className = "status ok";
 			celebrate();
 			setTimeout(()=> setWord(randomWord()), 900);
@@ -222,11 +227,14 @@ tres</textarea>
 	async function start(){
 		if (scanning) return;
 		try{
+			errEl.textContent = ""; // Clear previous errors
 			const w = document.getElementById('reader').clientWidth || 320;
 			html5QrCode = new Html5Qrcode("reader", { verbose:false });
 
 			// ensure we have at least facingMode fallback
-			if (!cameraSel.options.length) { await enumerateCameras(); }
+			if (!cameraSel.options.length || cameraSel.options.length === 1) { 
+				await enumerateCameras(); 
+			}
 
 			let config;
 			const selected = cameraSel.value;
@@ -238,8 +246,12 @@ tres</textarea>
 
 			await html5QrCode.start(
 				config,
-				{ fps: 10, qrbox: { width: Math.min(280, w-20), height: Math.min(280, w-20) }, aspectRatio: 1.0,
-				  experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+				{ 
+					fps: 10, 
+					qrbox: { width: Math.min(280, w-20), height: Math.min(280, w-20) }, 
+					aspectRatio: 1.0,
+					experimentalFeatures: { useBarCodeDetectorIfSupported: true } 
+				},
 				onScan,
 				onScanError
 			);
@@ -248,20 +260,33 @@ tres</textarea>
 			localStorage.setItem(LS_FACE, getFacing());
 
 			scanning = true;
-			startBtn.disabled = true; stopBtn.disabled = false; nextBtn.disabled = true;
+			startBtn.disabled = true; 
+			stopBtn.disabled = false; 
+			nextBtn.disabled = true;
 
 			// after permission, refresh labels
 			setTimeout(enumerateCameras, 300);
 		}catch(e){
 			errEl.textContent = "start error: " + (e.message || e);
+			scanning = false;
+			startBtn.disabled = false;
+			stopBtn.disabled = true;
 		}
 	}
 
 	async function stop(){
 		if (!scanning) return;
-		try { await html5QrCode.stop(); await html5QrCode.clear(); } catch{}
+		try { 
+			await html5QrCode.stop(); 
+			await html5QrCode.clear(); 
+		} catch(e) {
+			console.error("Stop error:", e);
+		}
 		scanning = false;
-		startBtn.disabled = false; stopBtn.disabled = true; nextBtn.disabled = false;
+		startBtn.disabled = false; 
+		stopBtn.disabled = true; 
+		nextBtn.disabled = false;
+		lastText = null; // Reset last scanned text
 	}
 
 	startBtn.addEventListener('click', start);
@@ -269,12 +294,21 @@ tres</textarea>
 	nextBtn.addEventListener('click', ()=> setWord(randomWord()));
 	cameraSel.addEventListener('change', async () => {
 		localStorage.setItem(LS_CAM, cameraSel.value);
-		if (scanning) { await stop(); await start(); }
+		if (scanning) { 
+			await stop(); 
+			await start(); 
+		}
 	});
 
 	// Error surfacing
-	addEventListener('error', e => errEl.textContent = 'Error: ' + (e.error?.message || e.message || e.filename));
-	addEventListener('unhandledrejection', e => errEl.textContent = 'Promise error: ' + (e.reason?.message || e.reason));
+	window.addEventListener('error', e => {
+		const msg = e.error?.message || e.message || e.filename || 'Unknown error';
+		errEl.textContent = 'Error: ' + msg;
+	});
+	window.addEventListener('unhandledrejection', e => {
+		const msg = e.reason?.message || e.reason || 'Promise rejected';
+		errEl.textContent = 'Promise error: ' + msg;
+	});
 
 	// Init
 	setWord(randomWord());
