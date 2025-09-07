@@ -454,7 +454,7 @@ tres</textarea>
 		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
 	</footer>
 
-<div id="debugPanel" style="position:fixed; left:12px; bottom:12px; z-index:9998; font-size:12px;">
+<div id="debugPanel" style="display:none; position:fixed; left:12px; bottom:12px; z-index:9998; font-size:12px;">
   <div style="background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:10px 12px; min-width:260px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
     <div style="font-weight:700; font-size:12px; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
       <span>🧪 Debug</span>
@@ -499,7 +499,50 @@ tres</textarea>
 		localStorage.setItem('qr-word-game:theme', newTheme);
 	});
 	
-	// UI Elements
+	/* HIDE DEBUG ON LOAD */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const p = document.getElementById('debugPanel'); if (p) p.style.display = 'none';
+});
+
+function toggleThemeClick(e){
+  const body = document.body;
+  const btn = document.getElementById('themeBtn');
+  const newTheme = body.className === 'light' ? 'dark' : 'light';
+  body.className = newTheme;
+  btn.textContent = newTheme === 'light' ? '🌙' : '☀️';
+  localStorage.setItem('qr-word-game:theme', newTheme);
+}
+themeBtn.addEventListener('click', toggleThemeClick);
+
+/* LONG_PRESS_THEME */
+let __lpTimer = null;
+let __lpFired = false;
+function __revealDebug(){
+  __lpFired = true;
+  const p = document.getElementById('debugPanel'); if (p) { p.style.display='block'; try{ toast('Debug menu unlocked'); }catch(e){} }
+}
+function __lpStart(){ clearTimeout(__lpTimer); __lpTimer = setTimeout(__revealDebug, 4000); }
+function __lpEnd(){ clearTimeout(__lpTimer); __lpTimer = null; }
+if (window.PointerEvent){
+  themeBtn.addEventListener('pointerdown', __lpStart);
+  themeBtn.addEventListener('pointerup', __lpEnd);
+  themeBtn.addEventListener('pointerleave', __lpEnd);
+  themeBtn.addEventListener('pointercancel', __lpEnd);
+} else {
+  themeBtn.addEventListener('mousedown', __lpStart);
+  themeBtn.addEventListener('mouseup', __lpEnd);
+  themeBtn.addEventListener('mouseleave', __lpEnd);
+  themeBtn.addEventListener('touchstart', __lpStart, {passive:true});
+  themeBtn.addEventListener('touchend', __lpEnd);
+  themeBtn.addEventListener('touchcancel', __lpEnd);
+}
+// Suppress theme toggle after LP
+const __origToggleThemeClick = toggleThemeClick;
+function toggleThemeClick(e){
+  if (__lpFired){ __lpFired = false; e && e.preventDefault && e.preventDefault(); return; }
+  return __origToggleThemeClick ? __origToggleThemeClick(e) : null;
+}
+// UI Elements
 	const wordEl = document.getElementById('currentWord');
 	const statusEl = document.getElementById('status');
 	const startBtn = document.getElementById('startBtn');
@@ -1122,9 +1165,7 @@ async function fetchPictogramFromAPI(word) {
 	}
 	
 
-
 function showMilestoneOverlay(stars) {
-    // Name + message
     const getName = () => {
         try {
             const s = (typeof studentNameInput !== 'undefined' && studentNameInput) ? studentNameInput.value : (localStorage.getItem('qr-word-game:student-name')||'');
@@ -1132,84 +1173,86 @@ function showMilestoneOverlay(stars) {
         } catch(e){ return ''; }
     };
     const name = getName();
-    const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+    const shout = (stars === 20) ? 'YOU DID IT!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
 
-    // Overlay shell
     const overlay = document.createElement('div');
-    Object.assign(overlay.style, {
-        position:'fixed', inset:'0', background:'rgba(0,0,0,.55)',
-        display:'flex', alignItems:'center', justifyContent:'center', zIndex:'10001'
-    });
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,.55)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '10001';
 
-    // Card
     const card = document.createElement('div');
-    Object.assign(card.style, {
-        background:'#1e3a5f', color:'#d1e9ff', borderRadius:'18px',
-        padding:'24px 20px', width:'min(92%, 780px)',
-        boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #e2e8f0',
-        textAlign:'center', overflow:'hidden'
-    });
+    card.style.background = '#1e3a5f';
+    card.style.color = '#d1e9ff';
+    card.style.borderRadius = '18px';
+    card.style.padding = '24px 20px';
+    card.style.width = 'min(92%,780px)';
+    card.style.boxShadow = '0 20px 70px rgba(0,0,0,.6)';
+    card.style.border = '6px solid #e2e8f0';
+    card.style.textAlign = 'center';
 
-    // Stars wrapper (two grid rows, 10 columns each)
+    // Stars rows
+    const row1Count = Math.min(stars, 10);
+    const row2Count = Math.max(0, stars - 10);
+    const row1 = '⭐'.repeat(row1Count);
+    const row2 = row2Count > 0 ? '⭐'.repeat(row2Count) : '';
+
     const starsWrap = document.createElement('div');
-    Object.assign(starsWrap.style, {display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px'});
+    starsWrap.style.display = 'flex';
+    starsWrap.style.flexDirection = 'column';
+    starsWrap.style.gap = '6px';
+    starsWrap.style.alignItems = 'center';
+    starsWrap.style.justifyContent = 'center';
+    starsWrap.style.marginBottom = '8px';
 
-    function makeRow(count){
-        const row = document.createElement('div');
-        Object.assign(row.style, {
-            display:'grid',
-            gridTemplateColumns:'repeat(10, 1fr)',
-            alignItems:'center',
-            justifyItems:'center'
-        });
-        for (let i=0;i<count;i++){
-            const s = document.createElement('span');
-            s.textContent = '⭐';
-            row.appendChild(s);
-        }
-        return row;
-    }
-    const topRow = makeRow(Math.min(stars, 10));
+    const topRow = document.createElement('div');
+    topRow.style.fontSize = '56px';
+    topRow.style.lineHeight = '1';
+    topRow.textContent = row1;
     starsWrap.appendChild(topRow);
-    let bottomRow = null;
-    if (stars > 10){
-        bottomRow = makeRow(stars - 10);
+    if (row2) {
+        const bottomRow = document.createElement('div');
+        bottomRow.style.fontSize = '56px';
+        bottomRow.style.lineHeight = '1';
+        bottomRow.textContent = row2;
         starsWrap.appendChild(bottomRow);
     }
 
-    // Title + message
     const titleEl = document.createElement('div');
-    Object.assign(titleEl.style, {fontSize:'72px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0'});
+    titleEl.style.fontSize = '72px';
+    titleEl.style.fontWeight = '800';
+    titleEl.style.letterSpacing = '1px';
+    titleEl.style.margin = '6px 0';
     titleEl.textContent = String(stars) + ' STARS!';
 
     const msgEl = document.createElement('div');
-    Object.assign(msgEl.style, {fontSize:'28px', fontWeight:'700', opacity:'.9', marginTop:'6px'});
+    msgEl.style.fontSize = '28px';
+    msgEl.style.fontWeight = '700';
+    msgEl.style.opacity = '.9';
+    msgEl.style.marginTop = '6px';
     msgEl.textContent = shout;
 
-    // Compose
     card.appendChild(starsWrap);
     card.appendChild(titleEl);
     card.appendChild(msgEl);
+  if (stars === 20) {
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
+    img.alt = 'You Win';
+    img.style.maxWidth = '220px';
+    img.style.marginTop = '12px';
+    card.appendChild(img);
+  }
+
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Responsive star sizing: size to fit 10 per row
-    const sizeStars = () => {
-        const inner = card.clientWidth - 40; // card padding approx
-        const target = Math.max(24, Math.min(56, Math.floor(inner/10) - 4));
-        [topRow, bottomRow].forEach(row => {
-            if (!row) return;
-            row.querySelectorAll('span').forEach(el => { el.style.fontSize = target + 'px'; lineHeight = '1'; });
-        });
-    };
-    sizeStars();
-    window.addEventListener('resize', sizeStars, { once:true });
-
-    // Milestone sound
+    // Play milestone sound
     try {
-        const a = new Audio(stars === 20
-            ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
-            : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac');
+        const a = new Audio('https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac');
         a.play().catch(()=>{});
     } catch(e) {}
 
