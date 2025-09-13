@@ -368,22 +368,13 @@
 					<button id="muteBtn" title="Toggle sound">🔊</button>
 				</div>
 				<div class="selects">
-					<select id="mode">
-						<option value="exact" selected>Exact match</option>
-						<option value="loose">Ignore accents & case</option>
-					</select>
 					<div class="toggle" title="Display mode">
 						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
 						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
 					</div>
 				</div>
 			</div>
-			
-            <div class="row" style="margin-top:6px; align-items:center;">
-                <label for="studentName" class="tag" title="Used in celebration messages">Student name</label>
-                <input id="studentName" type="text" placeholder="e.g., John" style="padding:10px 14px;border-radius:10px;border:1px solid #2a3548;min-width:180px;">
-            </div>
-<div id="currentWord" class="word" aria-live="polite">gato</div>
+			<div id="currentWord" class="word" aria-live="polite">gato</div>
 			<div id="pictogram"></div>
 			<div id="stars"></div>
 			<div class="status" id="status"></div>
@@ -449,40 +440,470 @@ tres</textarea>
 				</div>
 			</details>
 		</div>
-	</main>
-	<footer>
-		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
-	</footer>
+	
+<div id="volumePanel" style="display:none; opacity:1; transition: opacity .5s ease; position:fixed; right:12px; top:48px; z-index:9999; background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:8px 10px; width:180px; box-shadow:0 10px 30px rgba(0,0,0,.35)">
+  <div style="font-size:12px; margin-bottom:4px;">Volume</div>
+  <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0" style="width:100%">
+</div>
 
-<div id="debugPanel" style="display:none; position:fixed; left:12px; bottom:12px; z-index:9998; font-size:12px;">
-  <div style="background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:10px 12px; min-width:260px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
+
+<!-- Hidden Debug Panel -->
+<div id="debugPanel" style="display:none; position:fixed; left:12px; bottom:12px; z-index:9999; font-size:12px;">
+  <div style="background:#111722; color:#cde3ff; border:1px solid #1c2432; border-radius:12px; padding:10px 12px; min-width:260px; box-shadow:0 8px 30px rgba(0,0,0,.35)">
     <div style="font-weight:700; font-size:12px; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
       <span>🧪 Debug</span>
-      <button id="dbgToggle" title="Hide panel" style="margin-left:auto; background:#22314a; color:#cde3ff; border-radius:6px; padding:2px 6px; border:1px solid #2b3a56; cursor:pointer;">Hide</button>
+      <button id="dbgHide" style="margin-left:auto; background:#22314a; color:#cde3ff; border-radius:6px; padding:2px 6px; border:1px solid #2b3a56; cursor:pointer;">Hide</button>
     </div>
     <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:6px;">
       <button id="dbgCorrect1"  style="background:#1f5f2e; border-radius:8px; padding:6px;">✅ +1</button>
       <button id="dbgWrong"     style="background:#6b2a2a; border-radius:8px; padding:6px;">❌ Wrong</button>
       <button id="dbgReset"     style="background:#334155; border-radius:8px; padding:6px;">🔄 Reset</button>
-
       <button id="dbgC3" style="background:#315238; border-radius:8px; padding:6px;">✅ x3</button>
       <button id="dbgC5" style="background:#315238; border-radius:8px; padding:6px;">✅ x5</button>
       <button id="dbgC10" style="background:#315238; border-radius:8px; padding:6px;">✅ x10</button>
-
-      <button id="dbgShow3"  style="background:#4b5563; border-radius:8px; padding:6px;">🎉 3</button>
-      <button id="dbgShow5"  style="background:#4b5563; border-radius:8px; padding:6px;">🎉 5</button>
-      <button id="dbgShow10" style="background:#4b5563; border-radius:8px; padding:6px;">🎉 10</button>
-
-      <button id="dbgShow20" style="grid-column: span 3; background:#4b5563; border-radius:8px; padding:6px;">🎉 20</button>
     </div>
   </div>
 </div>
 
+</main>
+	<footer>
+		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
+	</footer>
 
 	<!-- Load confetti for celebrations -->
-	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-	<!-- Load jsQR as fallback QR reader -->
-	<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
+// URL-based sound that respects global mute/volume
+function playUrlSound(url){
+  try {
+    const st = (window && window.__qr_audio_state__) || { muted:true, volume:0 };
+    if (st.muted || st.volume <= 0) return;
+    const a = new Audio(url);
+    a.volume = st.volume;
+    a.play().catch(()=>{});
+  } catch(e) {}
+}
+
+
+/* LP_DEBUG_AND_AUDIO_BOOTSTRAP */
+document.addEventListener('DOMContentLoaded', () => {
+  const themeBtn = document.getElementById('themeBtn');
+  const debugPanel = document.getElementById('debugPanel');
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  /* DEBUG_BUTTON_WIRES */
+  const dbg = {
+    hide: document.getElementById('dbgHide'),
+    c1: document.getElementById('dbgCorrect1'),
+    wrong: document.getElementById('dbgWrong'),
+    reset: document.getElementById('dbgReset'),
+    c3: document.getElementById('dbgC3'),
+    c5: document.getElementById('dbgC5'),
+    c10: document.getElementById('dbgC10'),
+  };
+
+  function safeUpdate(ok){ try { if (typeof updateScore === 'function') updateScore(ok); } catch(e){ console.error(e); } }
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        safeUpdate(true);
+        await new Promise(r=>setTimeout(r, 120));
+      }
+    })();
+  }
+  function doReset(){
+    try {
+      if (typeof streak !== 'undefined') streak = 0;
+      if (typeof score !== 'undefined') score = 0;
+      if (typeof correctWords !== 'undefined' && correctWords && typeof correctWords.length === 'number') correctWords.length = 0;
+      const scoreTagEl = document.getElementById('scoreTag');
+      const streakTagEl = document.getElementById('streakTag');
+      if (scoreTagEl) scoreTagEl.textContent = 'Score: ' + (typeof score!=='undefined'?score:0);
+      if (streakTagEl) streakTagEl.textContent = 'Streak: ' + (typeof streak!=='undefined'?streak:0) + ' 🔥';
+      if (typeof updateStars === 'function') updateStars();
+      if (typeof toast === 'function') toast('Debug: reset');
+    } catch(e){ console.error(e); }
+  }
+
+  dbg.hide && dbg.hide.addEventListener('click', ()=>{ if (debugPanel) debugPanel.style.display='none'; });
+  dbg.c1   && dbg.c1.addEventListener('click', ()=> clicks(1));
+  dbg.wrong&& dbg.wrong.addEventListener('click', ()=> safeUpdate(false));
+  dbg.reset&& dbg.reset.addEventListener('click', doReset);
+  dbg.c3   && dbg.c3.addEventListener('click', ()=> clicks(3));
+  dbg.c5   && dbg.c5.addEventListener('click', ()=> clicks(5));
+  dbg.c10  && dbg.c10.addEventListener('click', ()=> clicks(10));
+
+
+  // Always hide debug on load
+  if (debugPanel) debugPanel.style.display = 'none';
+
+  // ---- Long-press (4s) to reveal debug with click-guard
+  let lpTimer = null;
+  let lpFired = false;
+
+  function revealDebug() {
+    lpFired = true;
+    if (debugPanel) debugPanel.style.display = 'block';
+    try { toast && toast('Debug menu unlocked'); } catch(e) { }
+  }
+  function lpStart() { clearTimeout(lpTimer); lpTimer = setTimeout(revealDebug, 4000); }
+  function lpEnd()   { clearTimeout(lpTimer); lpTimer = null; }
+
+  if (themeBtn) {
+    // Click guard in capture phase prevents theme toggle after long-press
+    themeBtn.addEventListener('click', (e) => {
+      if (lpFired) { lpFired = false; e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    if (window.PointerEvent) {
+      themeBtn.addEventListener('pointerdown', lpStart);
+      themeBtn.addEventListener('pointerup', lpEnd);
+      themeBtn.addEventListener('pointerleave', lpEnd);
+      themeBtn.addEventListener('pointercancel', lpEnd);
+    } else {
+      themeBtn.addEventListener('mousedown', lpStart);
+      themeBtn.addEventListener('mouseup', lpEnd);
+      themeBtn.addEventListener('mouseleave', lpEnd);
+      themeBtn.addEventListener('touchstart', lpStart, { passive: true });
+      themeBtn.addEventListener('touchend', lpEnd);
+      themeBtn.addEventListener('touchcancel', lpEnd);
+    }
+  }
+
+  // ---- Volume panel show/hide (fade-out + outside click closes)
+  let volTimer = null;
+  function showVol() { if (!volumePanel) return; volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol() { if (!volumePanel) return; volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto() { clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', (e)=>{
+      if (!volumePanel) return;
+      const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+      if (hidden) showVol(); else hideVol();
+      e.stopPropagation(); // prevent outside-click handler from immediately hiding it
+    });
+  }
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e)=>{ resetVolAuto(); });
+  }
+
+  // Close volume panel when clicking/touching anywhere outside it (and not the mute button)
+  document.addEventListener('mousedown', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+});
+
+
+
+function showMilestoneOverlay(stars) {
+  const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
+  const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, { position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex',
+    alignItems:'center', justifyContent:'center', zIndex:'10001' });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, { background:'#163454', color:'#d1e9ff', borderRadius:'18px', padding:'22px 18px',
+    width:'min(92%, 780px)', boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #cfd8e3',
+    textAlign:'center', overflow:'hidden', boxSizing:'border-box' });
+
+  function makeRow(cnt){
+    const row = document.createElement('div');
+    Object.assign(row.style, { display:'grid', gap:'6px', justifyContent:'center', alignItems:'center' });
+    for (let i=0;i<cnt;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; row.appendChild(s); }
+    return row;
+  }
+  const row1 = makeRow(Math.min(stars, 10));
+  const row2 = stars>10 ? makeRow(stars-10) : null;
+  const starsWrap = document.createElement('div');
+  Object.assign(starsWrap.style, { display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px', alignItems:'center' });
+  starsWrap.appendChild(row1); if (row2) starsWrap.appendChild(row2);
+
+  const titleEl = document.createElement('div');
+  Object.assign(titleEl.style, { fontSize:'64px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0' });
+  titleEl.textContent = String(stars) + ' STARS!';
+
+  const msgEl = document.createElement('div');
+  Object.assign(msgEl.style, { fontSize:'24px', fontWeight:'700', opacity:'.9', marginTop:'6px' });
+  msgEl.textContent = shout;
+
+  card.appendChild(starsWrap);
+  card.appendChild(titleEl);
+  card.appendChild(msgEl);
+
+  if (stars === 20) {
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
+    img.alt = 'You Win';
+    img.style.maxWidth = '220px';
+    img.style.marginTop = '12px';
+    img.style.borderRadius = '14px';
+    card.appendChild(img);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  const fit = () => {
+    const gap = 6;
+    const inner = card.clientWidth - 40;
+    const per = Math.floor((inner - gap*9) / 10);
+    const size = Math.max(18, Math.min(48, per));
+    const setRow = (row) => {
+      if (!row) return;
+      // Center by using fixed-size columns equal to star size; fewer stars => fewer columns, still centered
+      const n = row.children.length;
+      row.style.gridTemplateColumns = 'repeat(' + n + ', ' + size + 'px)';
+      [...row.children].forEach(el => { el.style.fontSize = size+'px'; el.style.lineHeight='1'; el.style.width = size+'px'; });
+    };
+    setRow(row1); setRow(row2);
+  };
+  fit(); window.addEventListener('resize', fit, { once:true });
+
+  try {
+    const url = (stars === 20)
+      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
+      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    if (typeof playUrlSound === 'function') playUrlSound(url);
+  } catch(e) {}
+
+  setTimeout(()=>overlay.remove(), 3400);
+}
+
+function playUrlSound(url){
+  try {
+    const st = (window && window.__qr_audio_state__) || { muted:true, volume:0 };
+    if (st.muted || st.volume <= 0) return;
+    const a = new Audio(url);
+    a.volume = st.volume;
+    a.play().catch(()=>{});
+  } catch(e) {}
+}
+
+
+/* LP_DEBUG_AND_AUDIO_BOOTSTRAP */
+document.addEventListener('DOMContentLoaded', () => {
+  const themeBtn = document.getElementById('themeBtn');
+  const debugPanel = document.getElementById('debugPanel');
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  /* DEBUG_BUTTON_WIRES */
+  const dbg = {
+    hide: document.getElementById('dbgHide'),
+    c1: document.getElementById('dbgCorrect1'),
+    wrong: document.getElementById('dbgWrong'),
+    reset: document.getElementById('dbgReset'),
+    c3: document.getElementById('dbgC3'),
+    c5: document.getElementById('dbgC5'),
+    c10: document.getElementById('dbgC10'),
+  };
+
+  function safeUpdate(ok){ try { if (typeof updateScore === 'function') updateScore(ok); } catch(e){ console.error(e); } }
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        safeUpdate(true);
+        await new Promise(r=>setTimeout(r, 120));
+      }
+    })();
+  }
+  function doReset(){
+    try {
+      if (typeof streak !== 'undefined') streak = 0;
+      if (typeof score !== 'undefined') score = 0;
+      if (typeof correctWords !== 'undefined' && correctWords && typeof correctWords.length === 'number') correctWords.length = 0;
+      const scoreTagEl = document.getElementById('scoreTag');
+      const streakTagEl = document.getElementById('streakTag');
+      if (scoreTagEl) scoreTagEl.textContent = 'Score: ' + (typeof score!=='undefined'?score:0);
+      if (streakTagEl) streakTagEl.textContent = 'Streak: ' + (typeof streak!=='undefined'?streak:0) + ' 🔥';
+      if (typeof updateStars === 'function') updateStars();
+      if (typeof toast === 'function') toast('Debug: reset');
+    } catch(e){ console.error(e); }
+  }
+
+  dbg.hide && dbg.hide.addEventListener('click', ()=>{ if (debugPanel) debugPanel.style.display='none'; });
+  dbg.c1   && dbg.c1.addEventListener('click', ()=> clicks(1));
+  dbg.wrong&& dbg.wrong.addEventListener('click', ()=> safeUpdate(false));
+  dbg.reset&& dbg.reset.addEventListener('click', doReset);
+  dbg.c3   && dbg.c3.addEventListener('click', ()=> clicks(3));
+  dbg.c5   && dbg.c5.addEventListener('click', ()=> clicks(5));
+  dbg.c10  && dbg.c10.addEventListener('click', ()=> clicks(10));
+
+
+  // Always hide debug on load
+  if (debugPanel) debugPanel.style.display = 'none';
+
+  // ---- Long-press (4s) to reveal debug with click-guard
+  let lpTimer = null;
+  let lpFired = false;
+
+  function revealDebug() {
+    lpFired = true;
+    if (debugPanel) debugPanel.style.display = 'block';
+    try { toast && toast('Debug menu unlocked'); } catch(e) { }
+  }
+  function lpStart() { clearTimeout(lpTimer); lpTimer = setTimeout(revealDebug, 4000); }
+  function lpEnd()   { clearTimeout(lpTimer); lpTimer = null; }
+
+  if (themeBtn) {
+    // Click guard in capture phase prevents theme toggle after long-press
+    themeBtn.addEventListener('click', (e) => {
+      if (lpFired) { lpFired = false; e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    if (window.PointerEvent) {
+      themeBtn.addEventListener('pointerdown', lpStart);
+      themeBtn.addEventListener('pointerup', lpEnd);
+      themeBtn.addEventListener('pointerleave', lpEnd);
+      themeBtn.addEventListener('pointercancel', lpEnd);
+    } else {
+      themeBtn.addEventListener('mousedown', lpStart);
+      themeBtn.addEventListener('mouseup', lpEnd);
+      themeBtn.addEventListener('mouseleave', lpEnd);
+      themeBtn.addEventListener('touchstart', lpStart, { passive: true });
+      themeBtn.addEventListener('touchend', lpEnd);
+      themeBtn.addEventListener('touchcancel', lpEnd);
+    }
+  }
+
+  // ---- Volume panel show/hide (fade-out + outside click closes)
+  let volTimer = null;
+  function showVol() { if (!volumePanel) return; volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol() { if (!volumePanel) return; volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto() { clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', (e)=>{
+      if (!volumePanel) return;
+      const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+      if (hidden) showVol(); else hideVol();
+      e.stopPropagation(); // prevent outside-click handler from immediately hiding it
+    });
+  }
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e)=>{ resetVolAuto(); });
+  }
+
+  // Close volume panel when clicking/touching anywhere outside it (and not the mute button)
+  document.addEventListener('mousedown', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+});
+
+
+function showMilestoneOverlay(stars) {
+  const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
+  const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, { position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex',
+    alignItems:'center', justifyContent:'center', zIndex:'10001' });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, { background:'#1e3a5f', color:'#d1e9ff', borderRadius:'18px', padding:'24px 20px',
+    width:'min(92%, 780px)', boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #e2e8f0',
+    textAlign:'center', overflow:'hidden', boxSizing:'border-box' });
+
+  function makeRow(cnt){
+    const row = document.createElement('div');
+    Object.assign(row.style, { display:'grid', gridTemplateColumns:'repeat(10, 1fr)', gap:'6px', alignItems:'center' });
+    for (let i=0;i<cnt;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; row.appendChild(s); }
+    return row;
+  }
+  const row1 = makeRow(Math.min(stars, 10));
+  const row2 = stars>10 ? makeRow(stars-10) : null;
+  const starsWrap = document.createElement('div');
+  Object.assign(starsWrap.style, { display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px' });
+  starsWrap.appendChild(row1); if (row2) starsWrap.appendChild(row2);
+
+  const titleEl = document.createElement('div');
+  Object.assign(titleEl.style, { fontSize:'72px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0' });
+  titleEl.textContent = String(stars) + ' STARS!';
+
+  const msgEl = document.createElement('div');
+  Object.assign(msgEl.style, { fontSize:'28px', fontWeight:'700', opacity:'.9', marginTop:'6px' });
+  msgEl.textContent = shout;
+
+  card.appendChild(starsWrap);
+  card.appendChild(titleEl);
+  card.appendChild(msgEl);
+
+  if (stars === 20) {
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
+    img.alt = 'You Win';
+    img.style.maxWidth = '220px';
+    img.style.marginTop = '12px';
+    img.style.borderRadius = '14px';
+    card.appendChild(img);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  const fit = () => {
+    const gap = 6, inner = card.clientWidth - 40;
+    const per = Math.floor((inner - gap*9) / 10);
+    const size = Math.max(18, Math.min(48, per));
+    [row1, row2].forEach(r => r && r.querySelectorAll('span').forEach(el => { el.style.fontSize = size+'px'; el.style.lineHeight='1'; }));
+  };
+  fit(); window.addEventListener('resize', fit, { once:true });
+
+  try {
+    const url = (stars === 20)
+      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
+      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    playUrlSound(url);
+  } catch(e) {}
+
+  setTimeout(()=>overlay.remove(), 3400);
+}
+
+
+// Volume panel toggle + outside click to close
+(function(){
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  if (!muteBtn || !volumePanel) return;
+  let volTimer = null;
+  function showVol(){ volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol(){ volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto(){ clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+  muteBtn.addEventListener('click', (e)=>{
+    const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+    if (hidden) showVol(); else hideVol();
+    e.stopPropagation();
+  });
+  document.addEventListener('mousedown', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+})();
+
+</script>
 
 	<script>
 	// Theme management
@@ -499,91 +920,18 @@ tres</textarea>
 		localStorage.setItem('qr-word-game:theme', newTheme);
 	});
 	
-	/* HIDE DEBUG ON LOAD */
-document.addEventListener('DOMContentLoaded', ()=>{
-  const p = document.getElementById('debugPanel'); if (p) p.style.display = 'none';
-});
-
-function toggleThemeClick(e){
-  const body = document.body;
-  const btn = document.getElementById('themeBtn');
-  const newTheme = body.className === 'light' ? 'dark' : 'light';
-  body.className = newTheme;
-  btn.textContent = newTheme === 'light' ? '🌙' : '☀️';
-  localStorage.setItem('qr-word-game:theme', newTheme);
-}
-themeBtn.addEventListener('click', toggleThemeClick);
-
-/* LONG_PRESS_THEME */
-let __lpTimer = null;
-let __lpFired = false;
-function __revealDebug(){
-  __lpFired = true;
-  const p = document.getElementById('debugPanel'); if (p) { p.style.display='block'; try{ toast('Debug menu unlocked'); }catch(e){} }
-}
-function __lpStart(){ clearTimeout(__lpTimer); __lpTimer = setTimeout(__revealDebug, 4000); }
-function __lpEnd(){ clearTimeout(__lpTimer); __lpTimer = null; }
-if (window.PointerEvent){
-  themeBtn.addEventListener('pointerdown', __lpStart);
-  themeBtn.addEventListener('pointerup', __lpEnd);
-  themeBtn.addEventListener('pointerleave', __lpEnd);
-  themeBtn.addEventListener('pointercancel', __lpEnd);
-} else {
-  themeBtn.addEventListener('mousedown', __lpStart);
-  themeBtn.addEventListener('mouseup', __lpEnd);
-  themeBtn.addEventListener('mouseleave', __lpEnd);
-  themeBtn.addEventListener('touchstart', __lpStart, {passive:true});
-  themeBtn.addEventListener('touchend', __lpEnd);
-  themeBtn.addEventListener('touchcancel', __lpEnd);
-}
-// Suppress theme toggle after LP
-const __origToggleThemeClick = toggleThemeClick;
-function toggleThemeClick(e){
-  if (__lpFired){ __lpFired = false; e && e.preventDefault && e.preventDefault(); return; }
-  return __origToggleThemeClick ? __origToggleThemeClick(e) : null;
-}
-// UI Elements
+	// UI Elements
 	const wordEl = document.getElementById('currentWord');
 	const statusEl = document.getElementById('status');
 	const startBtn = document.getElementById('startBtn');
 	const stopBtn = document.getElementById('stopBtn');
 	const nextBtn = document.getElementById('nextBtn');
 	const muteBtn = document.getElementById('muteBtn');
-	const modeSel = document.getElementById('mode');
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
 	const downloadWordsBtn = document.getElementById('downloadWords');
 	const uploadBtn = document.getElementById('uploadBtn');
 	const loadArasaacBtn = document.getElementById('loadArasaacBtn');
-
-// Pin IDs for current list (batch) + export
-const pinBtn = document.getElementById('pinIdsBtn');
-const exportPinnedBtn = document.getElementById('exportPinnedBtn');
-pinBtn?.addEventListener('click', async ()=>{
-	try{
-		pinBtn.disabled = true;
-		__nsLog && __nsLog('Pinning IDs for current list...');
-		const list = loadWords();
-		let pinnedCount = 0;
-		for (const w of list){
-			if (!w) continue;
-			const id = await resolvePictogramId(w);
-			if (id){ setPinned(w, id); pinnedCount++; try{ await fetch(`https://frosty-snowflake-66a2.john-zwicker.workers.dev/pictos/${id}.png`);}catch(e){} }
-			await new Promise(r=>setTimeout(r, 150));
-		}
-		toast(`Pinned ${pinnedCount} IDs`);
-		__nsLog && __nsLog(`Pinned ${pinnedCount} IDs (and prewarmed cache)`);
-	} catch(e){ console.error(e); toast('Pinning failed'); }
-	finally { pinBtn.disabled = false; }
-});
-exportPinnedBtn?.addEventListener('click', ()=>{
-	try{
-		const blob = new Blob([JSON.stringify(pinnedIds, null, 2)], {type:'application/json'});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a'); a.href=url; a.download='pinned-ids.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-	} catch(e){}
-});
-
 	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
@@ -596,7 +944,6 @@ exportPinnedBtn?.addEventListener('click', ()=>{
 	const starsEl = document.getElementById('stars');
 	const pictogramEl = document.getElementById('pictogram');
 	const loadingMsg = document.getElementById('loadingMsg');
-    const studentNameInput = document.getElementById('studentName');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
@@ -614,18 +961,6 @@ exportPinnedBtn?.addEventListener('click', ()=>{
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
 	let currentPictogramId = null;
 	
-// Pinned IDs (persisted)
-const LS_PINNED = 'qr-word-game:pinned-ids';
-let pinnedIds = {};
-try { pinnedIds = JSON.parse(localStorage.getItem(LS_PINNED) || '{}'); } catch(e) { pinnedIds = {}; }
-function setPinned(word, id) {
-	const w = (word||'').toLowerCase().trim();
-	if (!w || !id) return;
-	pinnedIds[w] = id;
-	try { localStorage.setItem(LS_PINNED, JSON.stringify(pinnedIds)); } catch(e) {}
-}
-
-	
 	// Initialize display mode
 	for (const r of displayRadios) {
 		if (r.value === displayMode) r.checked = true;
@@ -634,74 +969,7 @@ function setPinned(word, id) {
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
 	
-	
-/* DEBUG PANEL WIRES */
-(function(){
-  const byId = (id)=>document.getElementById(id);
-  const btn = {
-    toggle: byId('dbgToggle'),
-    c1: byId('dbgCorrect1'),
-    wrong: byId('dbgWrong'),
-    reset: byId('dbgReset'),
-    c3: byId('dbgC3'),
-    c5: byId('dbgC5'),
-    c10: byId('dbgC10'),
-    s3: byId('dbgShow3'),
-    s5: byId('dbgShow5'),
-    s10: byId('dbgShow10'),
-    s20: byId('dbgShow20'),
-  };
-  const panel = document.getElementById('debugPanel');
-
-  function clicks(n){
-    (async ()=>{
-      for (let i=0;i<n;i++){
-        try{ updateScore(true); }catch(e){ console.error(e); }
-        await new Promise(r=>setTimeout(r, 120)); // small delay to see effects
-      }
-    })();
-  }
-
-  function resetAll(){
-    try {
-      if (typeof streak !== 'undefined') { streak = 0; }
-      if (typeof usedWords !== 'undefined') { usedWords.length = 0; }
-      if (typeof correctWords !== 'undefined') { correctWords.length = 0; }
-      // Try to reset UI counters if present
-      if (typeof updateScore === 'function') { updateScore(false); } // a "wrong" to reflect reset
-      toast('Debug: reset streak and totals');
-    } catch(e) { console.error(e); }
-  }
-
-  btn.toggle && btn.toggle.addEventListener('click', ()=>{
-    const box = panel.querySelector('div');
-    const vis = box.style.display !== 'none';
-    box.style.display = vis ? 'none' : 'block';
-    btn.toggle.textContent = vis ? 'Show' : 'Hide';
-  });
-  btn.c1   && btn.c1.addEventListener('click', ()=> clicks(1));
-  btn.wrong&& btn.wrong.addEventListener('click', ()=> { try{ updateScore(false); }catch(e){} });
-  btn.reset&& btn.reset.addEventListener('click', resetAll);
-  btn.c3   && btn.c3.addEventListener('click', ()=> clicks(3));
-  btn.c5   && btn.c5.addEventListener('click', ()=> clicks(5));
-  btn.c10  && btn.c10.addEventListener('click', ()=> clicks(10));
-
-  btn.s3   && btn.s3.addEventListener('click', ()=> { try{ showMilestoneOverlay(3); celebrate && celebrate(); }catch(e){} });
-  btn.s5   && btn.s5.addEventListener('click', ()=> { try{ showMilestoneOverlay(5); celebrate && celebrate(); }catch(e){} });
-  btn.s10  && btn.s10.addEventListener('click', ()=> { try{ showMilestoneOverlay(10); celebrate && celebrate(); }catch(e){} });
-  btn.s20  && btn.s20.addEventListener('click', ()=> { try{ showMilestoneOverlay(20); celebrate && celebrate(); }catch(e){} });
-})();
-
-// Student name persistence
-    const LS_STUDENT = 'qr-word-game:student-name';
-    try {
-        const savedStudent = localStorage.getItem(LS_STUDENT);
-        if (studentNameInput && savedStudent) studentNameInput.value = savedStudent;
-        studentNameInput?.addEventListener('input', ()=> {
-            try { localStorage.setItem(LS_STUDENT, studentNameInput.value || ''); } catch(e){}
-        });
-    } catch(e) {}
-    // Sound generation
+	// Sound generation
 	function initAudio() {
 		if (!audioContext) {
 			audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -709,7 +977,8 @@ function setPinned(word, id) {
 	}
 	
 	function playSound(frequency, duration, type = 'sine') {
-		if (isMuted) return;
+		const __state = (window && window.__qr_audio_state__) || { muted: true, volume: 0 };
+		if (__state.muted || __state.volume <= 0) return;
 		
 		try {
 			initAudio();
@@ -722,7 +991,7 @@ function setPinned(word, id) {
 			oscillator.type = type;
 			oscillator.frequency.value = frequency;
 			
-			gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+			gainNode.gain.setValueAtTime(0.3 * __state.volume, audioContext.currentTime);
 			gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
 			
 			oscillator.start(audioContext.currentTime);
@@ -950,7 +1219,21 @@ function setPinned(word, id) {
 			wordEl.style.display = 'none';
 			pictogramEl.style.display = 'block';
 			fetchPictogramFromAPI(word);
-		} else {
+		
+    // OVERRIDE pictogram by word if present
+    (function(){
+      try {
+        const key = __normKey(wordEl && wordEl.textContent || '');
+        if (ARASAAC_OVERRIDES.hasOwnProperty(key)) {
+          const id = ARASAAC_OVERRIDES[key];
+          const worker = (typeof window !== 'undefined' && window.__arasaac_worker_base__) || "";
+          const src = worker ? (worker.replace(/\/$/,'') + '/pictos/' + id + '.png')
+                             : ('https://static.arasaac.org/pictograms/' + id + '/' + id + '_300.png');
+          if (pictogramImg) { pictogramImg.src = src; pictogramImg.dataset.arasaacId = String(id); }
+        }
+      } catch(e) {}
+    })();
+} else {
 			wordEl.style.display = 'block';
 			pictogramEl.style.display = 'none';
 		}
@@ -961,50 +1244,19 @@ function setPinned(word, id) {
 	let lastAPICall = 0;
 	const API_DELAY = 500; // Minimum 500ms between API calls
 	
-	
-async function resolvePictogramId(word){
-	const w = (word||'').toLowerCase().trim();
-	const nd = w.normalize('NFD').replace(/\p{Diacritic}/gu, '');
-	if (pinnedIds[w]) return pinnedIds[w];
-	if (pinnedIds[nd]) return pinnedIds[nd];
-	if (fallbackIds[w]) return fallbackIds[w];
-	if (fallbackIds[nd]) return fallbackIds[nd];
-	const workerBase = 'https://frosty-snowflake-66a2.john-zwicker.workers.dev';
-	const workerURL = `${workerBase}/bestsearch?q=${encodeURIComponent(w)}`;
-	const workerURLAlt = `${workerBase}/bestsearch?q=${encodeURIComponent(nd)}`;
-	let response = null;
-	try { response = await fetch(workerURL, {mode:'cors'}); } catch(e) { response = null; }
-	if (!response || !response.ok) { try { response = await fetch(workerURLAlt, {mode:'cors'}); } catch(e) { response = null; } }
-	if (!response || !response.ok) {
-		const apiURL = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(w)}`;
-		const apiURLAlt = `https://api.arasaac.org/v1/pictograms/es/bestsearch/${encodeURIComponent(nd)}`;
-		try { response = await fetch(apiURL, {mode:'cors'}); } catch(e) { response = null; }
-		if (!response || !response.ok) { try { response = await fetch(apiURLAlt, {mode:'cors'}); } catch(e) { response = null; } }
-	}
-	if (response && response.ok) {
-		try {
-			const items = await response.json();
-			if (Array.isArray(items) && items.length>0){
-				const top = items.slice(0,6);
-				for (const it of top){
-					const pid = it._id || it.id;
-					try {
-						const meta = await fetch(`https://api.arasaac.org/v1/pictograms/es/${pid}`, {mode:'cors'});
-						if (meta.ok){
-							const pdata = await meta.json();
-							const kws = (pdata.keywords||[]).map(k => (k.keyword||'').toLowerCase());
-							const kwsNd = kws.map(x=>x.normalize('NFD').replace(/\p{Diacritic}/gu,''));
-							if (kws.includes(w) || kwsNd.includes(nd)) return pid;
-						}
-					} catch(e){}
-				}
-				return top[0]._id || top[0].id;
-			}
-		} catch(e){}
-	}
-	return null;
+// --- ARASAAC ID overrides (force specific pictogram IDs for certain words) ---
+const ARASAAC_OVERRIDES = {
+  // Use normalized keys (lowercase, no accents) for robustness
+  "papa": 31146  // "papá"
+};
+function __normKey(s){
+  try { return (s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}+/gu, ''); } catch(e) {
+    // Fallback without unicode regex
+    return (s||'').toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
 }
-
 async function fetchPictogramFromAPI(word) {
 		pictogramEl.innerHTML = '<div>Loading pictogram...</div>';
 		
@@ -1121,7 +1373,6 @@ async function fetchPictogramFromAPI(word) {
 	}
 
 	function normalize(s){
-		if(modeSel.value==="exact") return s.trim();
 		return s.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
 	}
 	
@@ -1164,101 +1415,7 @@ async function fetchPictogramFromAPI(word) {
 		}
 	}
 	
-
-function showMilestoneOverlay(stars) {
-    const getName = () => {
-        try {
-            const s = (typeof studentNameInput !== 'undefined' && studentNameInput) ? studentNameInput.value : (localStorage.getItem('qr-word-game:student-name')||'');
-            return (s || '').trim();
-        } catch(e){ return ''; }
-    };
-    const name = getName();
-    const shout = (stars === 20) ? 'YOU DID IT!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
-
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.background = 'rgba(0,0,0,.55)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '10001';
-
-    const card = document.createElement('div');
-    card.style.background = '#1e3a5f';
-    card.style.color = '#d1e9ff';
-    card.style.borderRadius = '18px';
-    card.style.padding = '24px 20px';
-    card.style.width = 'min(92%,780px)';
-    card.style.boxShadow = '0 20px 70px rgba(0,0,0,.6)';
-    card.style.border = '6px solid #e2e8f0';
-    card.style.textAlign = 'center';
-
-    // Stars rows
-    const row1Count = Math.min(stars, 10);
-    const row2Count = Math.max(0, stars - 10);
-    const row1 = '⭐'.repeat(row1Count);
-    const row2 = row2Count > 0 ? '⭐'.repeat(row2Count) : '';
-
-    const starsWrap = document.createElement('div');
-    starsWrap.style.display = 'flex';
-    starsWrap.style.flexDirection = 'column';
-    starsWrap.style.gap = '6px';
-    starsWrap.style.alignItems = 'center';
-    starsWrap.style.justifyContent = 'center';
-    starsWrap.style.marginBottom = '8px';
-
-    const topRow = document.createElement('div');
-    topRow.style.fontSize = '56px';
-    topRow.style.lineHeight = '1';
-    topRow.textContent = row1;
-    starsWrap.appendChild(topRow);
-    if (row2) {
-        const bottomRow = document.createElement('div');
-        bottomRow.style.fontSize = '56px';
-        bottomRow.style.lineHeight = '1';
-        bottomRow.textContent = row2;
-        starsWrap.appendChild(bottomRow);
-    }
-
-    const titleEl = document.createElement('div');
-    titleEl.style.fontSize = '72px';
-    titleEl.style.fontWeight = '800';
-    titleEl.style.letterSpacing = '1px';
-    titleEl.style.margin = '6px 0';
-    titleEl.textContent = String(stars) + ' STARS!';
-
-    const msgEl = document.createElement('div');
-    msgEl.style.fontSize = '28px';
-    msgEl.style.fontWeight = '700';
-    msgEl.style.opacity = '.9';
-    msgEl.style.marginTop = '6px';
-    msgEl.textContent = shout;
-
-    card.appendChild(starsWrap);
-    card.appendChild(titleEl);
-    card.appendChild(msgEl);
-  if (stars === 20) {
-    const img = document.createElement('img');
-    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
-    img.alt = 'You Win';
-    img.style.maxWidth = '220px';
-    img.style.marginTop = '12px';
-    card.appendChild(img);
-  }
-
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-
-    // Play milestone sound
-    try {
-        const a = new Audio('https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac');
-        a.play().catch(()=>{});
-    } catch(e) {}
-
-    setTimeout(()=>overlay.remove(), 3400);
-}
-function showBigNumber(num) {
+	function showBigNumber(num) {
 		const el = document.createElement('div');
 		el.id = 'bigMilestone';
 		el.textContent = num;
@@ -1266,24 +1423,67 @@ function showBigNumber(num) {
 		setTimeout(() => el.remove(), 1500);
 	}
 	
-	function updateStars() {
-		const recentStars = correctWords.slice(-10).map(() => '⭐').join('');
-		starsEl.innerHTML = recentStars;
-		
-		if (correctWords.length > 0) {
-			starsEl.style.animation = 'none';
-			setTimeout(() => {
-				starsEl.style.animation = 'pulse 0.5s ease-in-out';
-			}, 10);
-		}
-	}
+	
+function updateStars() {
+  const total = correctWords.length;
+  const count = Math.min(total, 20);
+  const row1 = Math.min(count, 10);
+  const row2 = Math.max(0, count - 10);
+
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '6px';
+  wrap.style.alignItems = 'center';
+
+  function makeRow(n){
+    const r = document.createElement('div');
+    r.style.display = 'grid';
+    r.style.gridTemplateColumns = 'repeat(10, 1fr)';
+    r.style.gap = '6px';
+    r.style.alignItems = 'center';
+    for (let i=0;i<n;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; r.appendChild(s); }
+    return r;
+  }
+
+  const r1 = makeRow(row1);
+  wrap.appendChild(r1);
+  let r2 = null;
+  if (row2 > 0) { r2 = makeRow(row2); wrap.appendChild(r2); }
+
+  starsEl.innerHTML = '';
+  starsEl.appendChild(wrap);
+
+  const size = () => {
+    const gap = 6;
+    const inner = Math.max(160, Math.min(starsEl.clientWidth || window.innerWidth*0.9, 600)) - 20;
+    const per = Math.floor((inner - gap*9) / 10);
+    const target = Math.max(18, Math.min(40, per));
+    [r1, r2].forEach(row => {
+      if (!row) return;
+      row.querySelectorAll('span').forEach(el => { el.style.fontSize = target + 'px'; el.style.lineHeight = '1'; });
+    });
+  };
+  size(); setTimeout(size, 0);
+}
 	
 	function updateScore(ok){
 		if(ok){ 
 			score += 1; 
 			streak += 1;
 			correctWords.push(wordEl.textContent);
+    const totalCorrect = correctWords.length;
 			updateStars();
+
+    /* total-milestones */
+    if ([3,5,10,20].includes(totalCorrect)) {
+      showMilestoneOverlay(totalCorrect);
+      if (totalCorrect === 20) {
+        setTimeout(()=>{
+          try { streak=0; score=0; correctWords.length=0; scoreTag.textContent='Score: '+score; streakTag.textContent='Streak: '+streak+' 🔥'; updateStars(); if (typeof setWord==='function'&& typeof randomWord==='function') setWord(randomWord()); } catch(e) {}
+        }, 3400);
+      }
+    }
 			
 			playCorrectSound();
 			
@@ -1450,6 +1650,588 @@ function showBigNumber(num) {
 
 	// Initialize
 	setWord(randomWord());
-	</script>
+	
+// URL-based sound that respects global mute/volume
+function playUrlSound(url){
+  try {
+    const st = (window && window.__qr_audio_state__) || { muted:true, volume:0 };
+    if (st.muted || st.volume <= 0) return;
+    const a = new Audio(url);
+    a.volume = st.volume;
+    a.play().catch(()=>{});
+  } catch(e) {}
+}
+
+
+/* LP_DEBUG_AND_AUDIO_BOOTSTRAP */
+document.addEventListener('DOMContentLoaded', () => {
+  const themeBtn = document.getElementById('themeBtn');
+  const debugPanel = document.getElementById('debugPanel');
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  /* DEBUG_BUTTON_WIRES */
+  const dbg = {
+    hide: document.getElementById('dbgHide'),
+    c1: document.getElementById('dbgCorrect1'),
+    wrong: document.getElementById('dbgWrong'),
+    reset: document.getElementById('dbgReset'),
+    c3: document.getElementById('dbgC3'),
+    c5: document.getElementById('dbgC5'),
+    c10: document.getElementById('dbgC10'),
+  };
+
+  function safeUpdate(ok){ try { if (typeof updateScore === 'function') updateScore(ok); } catch(e){ console.error(e); } }
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        safeUpdate(true);
+        await new Promise(r=>setTimeout(r, 120));
+      }
+    })();
+  }
+  function doReset(){
+    try {
+      if (typeof streak !== 'undefined') streak = 0;
+      if (typeof score !== 'undefined') score = 0;
+      if (typeof correctWords !== 'undefined' && correctWords && typeof correctWords.length === 'number') correctWords.length = 0;
+      const scoreTagEl = document.getElementById('scoreTag');
+      const streakTagEl = document.getElementById('streakTag');
+      if (scoreTagEl) scoreTagEl.textContent = 'Score: ' + (typeof score!=='undefined'?score:0);
+      if (streakTagEl) streakTagEl.textContent = 'Streak: ' + (typeof streak!=='undefined'?streak:0) + ' 🔥';
+      if (typeof updateStars === 'function') updateStars();
+      if (typeof toast === 'function') toast('Debug: reset');
+    } catch(e){ console.error(e); }
+  }
+
+  dbg.hide && dbg.hide.addEventListener('click', ()=>{ if (debugPanel) debugPanel.style.display='none'; });
+  dbg.c1   && dbg.c1.addEventListener('click', ()=> clicks(1));
+  dbg.wrong&& dbg.wrong.addEventListener('click', ()=> safeUpdate(false));
+  dbg.reset&& dbg.reset.addEventListener('click', doReset);
+  dbg.c3   && dbg.c3.addEventListener('click', ()=> clicks(3));
+  dbg.c5   && dbg.c5.addEventListener('click', ()=> clicks(5));
+  dbg.c10  && dbg.c10.addEventListener('click', ()=> clicks(10));
+
+
+  // Always hide debug on load
+  if (debugPanel) debugPanel.style.display = 'none';
+
+  // ---- Long-press (4s) to reveal debug with click-guard
+  let lpTimer = null;
+  let lpFired = false;
+
+  function revealDebug() {
+    lpFired = true;
+    if (debugPanel) debugPanel.style.display = 'block';
+    try { toast && toast('Debug menu unlocked'); } catch(e) { }
+  }
+  function lpStart() { clearTimeout(lpTimer); lpTimer = setTimeout(revealDebug, 4000); }
+  function lpEnd()   { clearTimeout(lpTimer); lpTimer = null; }
+
+  if (themeBtn) {
+    // Click guard in capture phase prevents theme toggle after long-press
+    themeBtn.addEventListener('click', (e) => {
+      if (lpFired) { lpFired = false; e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    if (window.PointerEvent) {
+      themeBtn.addEventListener('pointerdown', lpStart);
+      themeBtn.addEventListener('pointerup', lpEnd);
+      themeBtn.addEventListener('pointerleave', lpEnd);
+      themeBtn.addEventListener('pointercancel', lpEnd);
+    } else {
+      themeBtn.addEventListener('mousedown', lpStart);
+      themeBtn.addEventListener('mouseup', lpEnd);
+      themeBtn.addEventListener('mouseleave', lpEnd);
+      themeBtn.addEventListener('touchstart', lpStart, { passive: true });
+      themeBtn.addEventListener('touchend', lpEnd);
+      themeBtn.addEventListener('touchcancel', lpEnd);
+    }
+  }
+
+  // ---- Volume panel show/hide (fade-out + outside click closes)
+  let volTimer = null;
+  function showVol() { if (!volumePanel) return; volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol() { if (!volumePanel) return; volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto() { clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', (e)=>{
+      if (!volumePanel) return;
+      const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+      if (hidden) showVol(); else hideVol();
+      e.stopPropagation(); // prevent outside-click handler from immediately hiding it
+    });
+  }
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e)=>{ resetVolAuto(); });
+  }
+
+  // Close volume panel when clicking/touching anywhere outside it (and not the mute button)
+  document.addEventListener('mousedown', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+});
+
+
+function showMilestoneOverlay(stars) {
+  const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
+  const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, { position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex',
+    alignItems:'center', justifyContent:'center', zIndex:'10001' });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, { background:'#1e3a5f', color:'#d1e9ff', borderRadius:'18px', padding:'24px 20px',
+    width:'min(92%, 780px)', boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #e2e8f0',
+    textAlign:'center', overflow:'hidden', boxSizing:'border-box' });
+
+  function makeRow(cnt){
+    const row = document.createElement('div');
+    Object.assign(row.style, { display:'grid', gridTemplateColumns:'repeat(10, 1fr)', gap:'6px', alignItems:'center' });
+    for (let i=0;i<cnt;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; row.appendChild(s); }
+    return row;
+  }
+  const row1 = makeRow(Math.min(stars, 10));
+  const row2 = stars>10 ? makeRow(stars-10) : null;
+  const starsWrap = document.createElement('div');
+  Object.assign(starsWrap.style, { display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px' });
+  starsWrap.appendChild(row1); if (row2) starsWrap.appendChild(row2);
+
+  const titleEl = document.createElement('div');
+  Object.assign(titleEl.style, { fontSize:'72px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0' });
+  titleEl.textContent = String(stars) + ' STARS!';
+
+  const msgEl = document.createElement('div');
+  Object.assign(msgEl.style, { fontSize:'28px', fontWeight:'700', opacity:'.9', marginTop:'6px' });
+  msgEl.textContent = shout;
+
+  card.appendChild(starsWrap);
+  card.appendChild(titleEl);
+  card.appendChild(msgEl);
+
+  if (stars === 20) {
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
+    img.alt = 'You Win';
+    img.style.maxWidth = '220px';
+    img.style.marginTop = '12px';
+    img.style.borderRadius = '14px';
+    card.appendChild(img);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  const fit = () => {
+    const gap = 6, inner = card.clientWidth - 40;
+    const per = Math.floor((inner - gap*9) / 10);
+    const size = Math.max(18, Math.min(48, per));
+    [row1, row2].forEach(r => r && r.querySelectorAll('span').forEach(el => { el.style.fontSize = size+'px'; el.style.lineHeight='1'; }));
+  };
+  fit(); window.addEventListener('resize', fit, { once:true });
+
+  try {
+    const url = (stars === 20)
+      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
+      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    playUrlSound(url);
+  } catch(e) {}
+
+  setTimeout(()=>overlay.remove(), 3400);
+}
+
+
+// Volume panel toggle + outside click to close
+(function(){
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  if (!muteBtn || !volumePanel) return;
+  let volTimer = null;
+  function showVol(){ volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol(){ volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto(){ clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+  muteBtn.addEventListener('click', (e)=>{
+    const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+    if (hidden) showVol(); else hideVol();
+    e.stopPropagation();
+  });
+  document.addEventListener('mousedown', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+})();
+
+</script>
+
+<script>
+(function(){
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  /* DEBUG_BUTTON_WIRES */
+  const dbg = {
+    hide: document.getElementById('dbgHide'),
+    c1: document.getElementById('dbgCorrect1'),
+    wrong: document.getElementById('dbgWrong'),
+    reset: document.getElementById('dbgReset'),
+    c3: document.getElementById('dbgC3'),
+    c5: document.getElementById('dbgC5'),
+    c10: document.getElementById('dbgC10'),
+  };
+
+  function safeUpdate(ok){ try { if (typeof updateScore === 'function') updateScore(ok); } catch(e){ console.error(e); } }
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        safeUpdate(true);
+        await new Promise(r=>setTimeout(r, 120));
+      }
+    })();
+  }
+  function doReset(){
+    try {
+      if (typeof streak !== 'undefined') streak = 0;
+      if (typeof score !== 'undefined') score = 0;
+      if (typeof correctWords !== 'undefined' && correctWords && typeof correctWords.length === 'number') correctWords.length = 0;
+      const scoreTagEl = document.getElementById('scoreTag');
+      const streakTagEl = document.getElementById('streakTag');
+      if (scoreTagEl) scoreTagEl.textContent = 'Score: ' + (typeof score!=='undefined'?score:0);
+      if (streakTagEl) streakTagEl.textContent = 'Streak: ' + (typeof streak!=='undefined'?streak:0) + ' 🔥';
+      if (typeof updateStars === 'function') updateStars();
+      if (typeof toast === 'function') toast('Debug: reset');
+    } catch(e){ console.error(e); }
+  }
+
+  dbg.hide && dbg.hide.addEventListener('click', ()=>{ if (debugPanel) debugPanel.style.display='none'; });
+  dbg.c1   && dbg.c1.addEventListener('click', ()=> clicks(1));
+  dbg.wrong&& dbg.wrong.addEventListener('click', ()=> safeUpdate(false));
+  dbg.reset&& dbg.reset.addEventListener('click', doReset);
+  dbg.c3   && dbg.c3.addEventListener('click', ()=> clicks(3));
+  dbg.c5   && dbg.c5.addEventListener('click', ()=> clicks(5));
+  dbg.c10  && dbg.c10.addEventListener('click', ()=> clicks(10));
+
+  const LS_MUTED = 'qr-word-game:muted';
+  const LS_VOL = 'qr-word-game:volume';
+
+  // defaults
+  try {
+    if (localStorage.getItem(LS_MUTED) === null) localStorage.setItem(LS_MUTED, 'true');
+    if (localStorage.getItem(LS_VOL) === null) localStorage.setItem(LS_VOL, '0');
+  } catch(e){}
+
+  const state = {
+    get muted(){ try { return (localStorage.getItem(LS_MUTED)||'true')==='true'; } catch(e){ return true; } },
+    set muted(v){ try { localStorage.setItem(LS_MUTED, v?'true':'false'); } catch(e){} },
+    get volume(){ try { return Math.max(0, Math.min(1, parseFloat(localStorage.getItem(LS_VOL)||'0')));} catch(e){ return 0; } },
+    set volume(v){ try { localStorage.setItem(LS_VOL, String(Math.max(0, Math.min(1, v||0)))); } catch(e){} }
+  };
+  // expose
+  window.__qr_audio_state__ = {
+    get muted(){ return state.muted; },
+    get volume(){ return state.volume; },
+    setMuted(v){ state.muted = !!v; applyUI(); },
+    setVolume(v){ state.volume = v; if (v>0) state.muted=false; applyUI(); }
+  };
+
+  function applyUI(){
+    const vol = state.volume, muted = state.muted;
+    if (muteBtn){
+      if (muted || vol<=0) muteBtn.textContent='🔇';
+      else if (vol<0.34) muteBtn.textContent='🔈';
+      else if (vol<0.67) muteBtn.textContent='🔉';
+      else muteBtn.textContent='🔊';
+    }
+    if (volumeSlider) volumeSlider.value = String(vol);
+  }
+  applyUI();
+
+  // panel show/hide with fade and auto-hide
+  let t=null;
+  function showPanel(){ if (!volumePanel) return; volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetTimer(); }
+  function hidePanel(){ if (!volumePanel) return; volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetTimer(){ clearTimeout(t); t = setTimeout(hidePanel, 5000); }
+
+  if (muteBtn){
+    muteBtn.addEventListener('click', ()=>{
+      if (!volumePanel) return;
+      const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+      if (hidden) showPanel(); else hidePanel();
+    });
+  }
+  if (volumeSlider){
+    volumeSlider.addEventListener('input', (e)=>{
+      resetTimer();
+      const v = parseFloat(e.target.value||'0');
+      window.__qr_audio_state__.setVolume(v);
+    });
+  }
+  if (volumePanel){
+    ['mousemove','mousedown','touchstart','touchmove','click'].forEach(ev=>volumePanel.addEventListener(ev, resetTimer, {passive:true}));
+  }
+  // Ensure muted default applied on first paint
+  applyUI();
+})();
+
+/* LP_DEBUG_AND_AUDIO_BOOTSTRAP */
+document.addEventListener('DOMContentLoaded', () => {
+  const themeBtn = document.getElementById('themeBtn');
+  const debugPanel = document.getElementById('debugPanel');
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  /* DEBUG_BUTTON_WIRES */
+  const dbg = {
+    hide: document.getElementById('dbgHide'),
+    c1: document.getElementById('dbgCorrect1'),
+    wrong: document.getElementById('dbgWrong'),
+    reset: document.getElementById('dbgReset'),
+    c3: document.getElementById('dbgC3'),
+    c5: document.getElementById('dbgC5'),
+    c10: document.getElementById('dbgC10'),
+  };
+
+  function safeUpdate(ok){ try { if (typeof updateScore === 'function') updateScore(ok); } catch(e){ console.error(e); } }
+  function clicks(n){
+    (async ()=>{
+      for (let i=0;i<n;i++){
+        safeUpdate(true);
+        await new Promise(r=>setTimeout(r, 120));
+      }
+    })();
+  }
+  function doReset(){
+    try {
+      if (typeof streak !== 'undefined') streak = 0;
+      if (typeof score !== 'undefined') score = 0;
+      if (typeof correctWords !== 'undefined' && correctWords && typeof correctWords.length === 'number') correctWords.length = 0;
+      const scoreTagEl = document.getElementById('scoreTag');
+      const streakTagEl = document.getElementById('streakTag');
+      if (scoreTagEl) scoreTagEl.textContent = 'Score: ' + (typeof score!=='undefined'?score:0);
+      if (streakTagEl) streakTagEl.textContent = 'Streak: ' + (typeof streak!=='undefined'?streak:0) + ' 🔥';
+      if (typeof updateStars === 'function') updateStars();
+      if (typeof toast === 'function') toast('Debug: reset');
+    } catch(e){ console.error(e); }
+  }
+
+  dbg.hide && dbg.hide.addEventListener('click', ()=>{ if (debugPanel) debugPanel.style.display='none'; });
+  dbg.c1   && dbg.c1.addEventListener('click', ()=> clicks(1));
+  dbg.wrong&& dbg.wrong.addEventListener('click', ()=> safeUpdate(false));
+  dbg.reset&& dbg.reset.addEventListener('click', doReset);
+  dbg.c3   && dbg.c3.addEventListener('click', ()=> clicks(3));
+  dbg.c5   && dbg.c5.addEventListener('click', ()=> clicks(5));
+  dbg.c10  && dbg.c10.addEventListener('click', ()=> clicks(10));
+
+
+  // Always hide debug on load
+  if (debugPanel) debugPanel.style.display = 'none';
+
+  // ---- Long-press (4s) to reveal debug with click-guard
+  let lpTimer = null;
+  let lpFired = false;
+
+  function revealDebug() {
+    lpFired = true;
+    if (debugPanel) debugPanel.style.display = 'block';
+    try { toast && toast('Debug menu unlocked'); } catch(e) { }
+  }
+  function lpStart() { clearTimeout(lpTimer); lpTimer = setTimeout(revealDebug, 4000); }
+  function lpEnd()   { clearTimeout(lpTimer); lpTimer = null; }
+
+  if (themeBtn) {
+    // Click guard in capture phase prevents theme toggle after long-press
+    themeBtn.addEventListener('click', (e) => {
+      if (lpFired) { lpFired = false; e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    if (window.PointerEvent) {
+      themeBtn.addEventListener('pointerdown', lpStart);
+      themeBtn.addEventListener('pointerup', lpEnd);
+      themeBtn.addEventListener('pointerleave', lpEnd);
+      themeBtn.addEventListener('pointercancel', lpEnd);
+    } else {
+      themeBtn.addEventListener('mousedown', lpStart);
+      themeBtn.addEventListener('mouseup', lpEnd);
+      themeBtn.addEventListener('mouseleave', lpEnd);
+      themeBtn.addEventListener('touchstart', lpStart, { passive: true });
+      themeBtn.addEventListener('touchend', lpEnd);
+      themeBtn.addEventListener('touchcancel', lpEnd);
+    }
+  }
+
+  // ---- Volume panel show/hide (fade-out + outside click closes)
+  let volTimer = null;
+  function showVol() { if (!volumePanel) return; volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol() { if (!volumePanel) return; volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto() { clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', (e)=>{
+      if (!volumePanel) return;
+      const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+      if (hidden) showVol(); else hideVol();
+      e.stopPropagation(); // prevent outside-click handler from immediately hiding it
+    });
+  }
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e)=>{ resetVolAuto(); });
+  }
+
+  // Close volume panel when clicking/touching anywhere outside it (and not the mute button)
+  document.addEventListener('mousedown', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (!volumePanel || volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+});
+
+
+function showMilestoneOverlay(stars) {
+  const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
+  const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
+
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, { position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex',
+    alignItems:'center', justifyContent:'center', zIndex:'10001' });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, { background:'#1e3a5f', color:'#d1e9ff', borderRadius:'18px', padding:'24px 20px',
+    width:'min(92%, 780px)', boxShadow:'0 20px 70px rgba(0,0,0,.6)', border:'6px solid #e2e8f0',
+    textAlign:'center', overflow:'hidden', boxSizing:'border-box' });
+
+  function makeRow(cnt){
+    const row = document.createElement('div');
+    Object.assign(row.style, { display:'grid', gridTemplateColumns:'repeat(10, 1fr)', gap:'6px', alignItems:'center' });
+    for (let i=0;i<cnt;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; row.appendChild(s); }
+    return row;
+  }
+  const row1 = makeRow(Math.min(stars, 10));
+  const row2 = stars>10 ? makeRow(stars-10) : null;
+  const starsWrap = document.createElement('div');
+  Object.assign(starsWrap.style, { display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px' });
+  starsWrap.appendChild(row1); if (row2) starsWrap.appendChild(row2);
+
+  const titleEl = document.createElement('div');
+  Object.assign(titleEl.style, { fontSize:'72px', fontWeight:'800', letterSpacing:'1px', margin:'6px 0' });
+  titleEl.textContent = String(stars) + ' STARS!';
+
+  const msgEl = document.createElement('div');
+  Object.assign(msgEl.style, { fontSize:'28px', fontWeight:'700', opacity:'.9', marginTop:'6px' });
+  msgEl.textContent = shout;
+
+  card.appendChild(starsWrap);
+  card.appendChild(titleEl);
+  card.appendChild(msgEl);
+
+  if (stars === 20) {
+    const img = document.createElement('img');
+    img.src = 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/images/youwin.png';
+    img.alt = 'You Win';
+    img.style.maxWidth = '220px';
+    img.style.marginTop = '12px';
+    img.style.borderRadius = '14px';
+    card.appendChild(img);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  const fit = () => {
+    const gap = 6, inner = card.clientWidth - 40;
+    const per = Math.floor((inner - gap*9) / 10);
+    const size = Math.max(18, Math.min(48, per));
+    [row1, row2].forEach(r => r && r.querySelectorAll('span').forEach(el => { el.style.fontSize = size+'px'; el.style.lineHeight='1'; }));
+  };
+  fit(); window.addEventListener('resize', fit, { once:true });
+
+  try {
+    const url = (stars === 20)
+      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
+      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    playUrlSound(url);
+  } catch(e) {}
+
+  setTimeout(()=>overlay.remove(), 3400);
+}
+
+
+// Volume panel toggle + outside click to close
+(function(){
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  if (!muteBtn || !volumePanel) return;
+  let volTimer = null;
+  function showVol(){ volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol(){ volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto(){ clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+  muteBtn.addEventListener('click', (e)=>{
+    const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+    if (hidden) showVol(); else hideVol();
+    e.stopPropagation();
+  });
+  document.addEventListener('mousedown', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+})();
+
+</script>
+
+
+<script>
+/*VOL_TOGGLE_OUTSIDE*/
+(function(){
+  const muteBtn = document.getElementById('muteBtn');
+  const volumePanel = document.getElementById('volumePanel');
+  const volumeSlider = document.getElementById('volumeSlider');
+  if (!muteBtn || !volumePanel) return;
+  let volTimer = null;
+  function showVol(){ volumePanel.style.display='block'; volumePanel.style.opacity='1'; resetVolAuto(); }
+  function hideVol(){ volumePanel.style.opacity='0'; setTimeout(()=>{ if (volumePanel.style.opacity==='0') volumePanel.style.display='none'; }, 500); }
+  function resetVolAuto(){ clearTimeout(volTimer); volTimer = setTimeout(hideVol, 5000); }
+  muteBtn.addEventListener('click', (e)=>{
+    const hidden = (volumePanel.style.display==='none' || !volumePanel.style.display);
+    if (hidden) showVol(); else hideVol();
+    e.stopPropagation();
+  });
+  if (volumeSlider) volumeSlider.addEventListener('input', resetVolAuto);
+  document.addEventListener('mousedown', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  });
+  document.addEventListener('touchstart', (e)=>{
+    if (volumePanel.style.display==='none') return;
+    const t = e.target;
+    if (t !== volumePanel && !volumePanel.contains(t) && t !== muteBtn) hideVol();
+  }, {passive:true});
+})();
+</script>
+
 </body>
 </html>
