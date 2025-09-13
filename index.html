@@ -27,7 +27,7 @@
 			color: white;
 			box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 		}
-		.light select, .light textarea {
+		.light select, .light textarea, .light input[type="text"] {
 			background: #f8f9fa;
 			color: #2c3e50;
 			border: 2px solid #e0e6ed;
@@ -80,7 +80,7 @@
 		.dark button:hover {
 			background: #2a3548;
 		}
-		.dark select, .dark textarea {
+		.dark select, .dark textarea, .dark input[type="text"] {
 			background: #0f1520;
 			color: #f7f7f7;
 			border: 1px solid #25324a;
@@ -170,7 +170,7 @@
 			cursor: not-allowed;
 			transform: none;
 		}
-		select, textarea {
+		select, textarea, input[type="text"] {
 			border-radius: 10px;
 			padding: 10px 15px;
 			font-size: 16px;
@@ -454,6 +454,11 @@
 				font-size: 14px;
 			}
 			
+			input[type="text"] {
+				font-size: 14px;
+				padding: 6px 10px;
+			}
+			
 			details summary {
 				font-size: 16px;
 			}
@@ -546,6 +551,11 @@
 			</div>
 
 			<div class="card word-list-panel">
+				<div class="row" style="margin-bottom: 16px;">
+					<label for="studentName" style="font-weight: 600; font-size: 14px;">Student Name:</label>
+					<input type="text" id="studentName" placeholder="Enter student name" 
+						   style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 2px solid #e0e6ed; font-size: 14px;">
+				</div>
 			<details open>
 				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
 				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
@@ -557,6 +567,7 @@ perro
 tres</textarea>
 				<div class="row" style="margin-top: 10px;">
 					<button id="saveWords">Save list</button>
+					<button id="clearWords" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);">Clear list</button>
 					<button id="downloadWords">Download list</button>
 					<button id="uploadBtn">Load from file</button>
 					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
@@ -612,6 +623,9 @@ tres</textarea>
 		<span class="small">Use over HTTPS for camera access. Pictograms from ARASAAC.org</span>
 	</footer>
 
+	<!-- Load QR code scanning library -->
+	<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+	
 	<!-- Load confetti for celebrations -->
 	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
 // URL-based sound that respects global mute/volume
@@ -1071,6 +1085,7 @@ function showMilestoneOverlay(stars) {
 	const muteBtn = document.getElementById('muteBtn');
 	const wordListTA = document.getElementById('wordList');
 	const saveWordsBtn = document.getElementById('saveWords');
+	const clearWordsBtn = document.getElementById('clearWords');
 	const downloadWordsBtn = document.getElementById('downloadWords');
 	const uploadBtn = document.getElementById('uploadBtn');
 	const loadArasaacBtn = document.getElementById('loadArasaacBtn');
@@ -1086,6 +1101,7 @@ function showMilestoneOverlay(stars) {
 	const starsEl = document.getElementById('stars');
 	const pictogramEl = document.getElementById('pictogram');
 	const loadingMsg = document.getElementById('loadingMsg');
+	const studentNameInput = document.getElementById('studentName');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
@@ -1110,6 +1126,15 @@ function showMilestoneOverlay(stars) {
 	
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
+	
+	// Initialize student name
+	const savedStudentName = localStorage.getItem('qr-word-game:student-name') || '';
+	if (studentNameInput) {
+		studentNameInput.value = savedStudentName;
+		studentNameInput.addEventListener('input', () => {
+			localStorage.setItem('qr-word-game:student-name', studentNameInput.value);
+		});
+	}
 	
 	// Sound generation
 	function initAudio() {
@@ -1196,9 +1221,21 @@ function showMilestoneOverlay(stars) {
 	
 	function saveWords(){
 		localStorage.setItem(LS_KEY, wordListTA.value);
-		words = loadWords();
-		usedWords = [];
-		toast("Saved " + words.length + " words!");
+		toast("Saved! Reloading to update word list...");
+		setTimeout(() => {
+			window.location.reload();
+		}, 1000);
+	}
+	
+	function clearWords(){
+		if (confirm("Are you sure you want to clear the entire word list? This cannot be undone.")) {
+			wordListTA.value = "";
+			localStorage.setItem(LS_KEY, "");
+			words = [];
+			usedWords = [];
+			toast("Word list cleared!");
+			setWord("gato"); // Set default word
+		}
 	}
 	
 	// Load validated words from ARASAAC
@@ -1325,6 +1362,7 @@ function showMilestoneOverlay(stars) {
 	}
 	
 	saveWordsBtn.addEventListener('click', saveWords);
+	clearWordsBtn.addEventListener('click', clearWords);
 	downloadWordsBtn.addEventListener('click', downloadWords);
 	uploadBtn.addEventListener('click', () => fileInput.click());
 	fileInput.addEventListener('change', loadFromFile);
