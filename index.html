@@ -1107,6 +1107,7 @@ function showMilestoneOverlay(stars) {
 	const LS_KEY = "qr-word-game:list";
 	const LS_MUTED = "qr-word-game:muted";
 	const LS_DISPLAY = "qr-word-game:display";
+	const LS_GAME_STATE = "qr-word-game:game-state";
 	let stream = null;
 	let scanning = false;
 	let score = 0, streak = 0;
@@ -1135,6 +1136,59 @@ function showMilestoneOverlay(stars) {
 			localStorage.setItem('qr-word-game:student-name', studentNameInput.value);
 		});
 	}
+	
+	// Game state persistence functions
+	function saveGameState() {
+		try {
+			const gameState = {
+				score: score,
+				streak: streak,
+				correctWords: correctWords,
+				timestamp: Date.now()
+			};
+			localStorage.setItem(LS_GAME_STATE, JSON.stringify(gameState));
+		} catch(e) {
+			console.log('Could not save game state');
+		}
+	}
+	
+	function loadGameState() {
+		try {
+			const saved = localStorage.getItem(LS_GAME_STATE);
+			if (saved) {
+				const gameState = JSON.parse(saved);
+				// Only load if saved within last 24 hours
+				if (Date.now() - gameState.timestamp < 24 * 60 * 60 * 1000) {
+					score = gameState.score || 0;
+					streak = gameState.streak || 0;
+					correctWords = gameState.correctWords || [];
+					
+					// Update UI
+					scoreTag.textContent = "Score: " + score;
+					streakTag.textContent = "Streak: " + streak + " 🔥";
+					updateStars();
+					
+					return true;
+				}
+			}
+		} catch(e) {
+			console.log('Could not load game state');
+		}
+		return false;
+	}
+	
+	// Load saved game state on startup
+	loadGameState();
+	
+	// Save game state when page becomes hidden (user switches apps/tabs)
+	document.addEventListener('visibilitychange', () => {
+		if (document.hidden) {
+			saveGameState();
+		}
+	});
+	
+	// Save game state before page unload
+	window.addEventListener('beforeunload', saveGameState);
 	
 	// Sound generation
 	function initAudio() {
@@ -1182,10 +1236,27 @@ function showMilestoneOverlay(stars) {
 	}
 	
 	muteBtn.addEventListener('click', () => {
-		isMuted = !isMuted;
-		muteBtn.textContent = isMuted ? '🔇' : '🔊';
-		localStorage.setItem(LS_MUTED, isMuted.toString());
-		toast(isMuted ? 'Sound muted' : 'Sound enabled');
+		// Use the global audio state system
+		const currentState = window.__qr_audio_state__;
+		if (currentState) {
+			const newMuted = !currentState.muted;
+			currentState.setMuted(newMuted);
+			if (!newMuted && currentState.volume <= 0) {
+				currentState.setVolume(0.7); // Set reasonable default volume
+			}
+			toast(newMuted ? 'Sound muted' : 'Sound enabled');
+			
+			// Test sound when unmuting
+			if (!newMuted) {
+				setTimeout(() => playCorrectSound(), 100);
+			}
+		} else {
+			// Fallback to old system
+			isMuted = !isMuted;
+			muteBtn.textContent = isMuted ? '🔇' : '🔊';
+			localStorage.setItem(LS_MUTED, isMuted.toString());
+			toast(isMuted ? 'Sound muted' : 'Sound enabled');
+		}
 	});
 	
 	// Display mode toggle
@@ -1660,7 +1731,7 @@ function updateStars() {
       showMilestoneOverlay(totalCorrect);
       if (totalCorrect === 20) {
         setTimeout(()=>{
-          try { streak=0; score=0; correctWords.length=0; scoreTag.textContent='Score: '+score; streakTag.textContent='Streak: '+streak+' 🔥'; updateStars(); if (typeof setWord==='function'&& typeof randomWord==='function') setWord(randomWord()); } catch(e) {}
+          try { streak=0; score=0; correctWords.length=0; scoreTag.textContent='Score: '+score; streakTag.textContent='Streak: '+streak+' 🔥'; updateStars(); saveGameState(); if (typeof setWord==='function'&& typeof randomWord==='function') setWord(randomWord()); } catch(e) {}
         }, 3400);
       }
     }
@@ -1690,6 +1761,9 @@ function updateStars() {
 		}
 		scoreTag.textContent = "Score: " + score;
 		streakTag.textContent = "Streak: " + streak + " 🔥";
+		
+		// Save game state after every score update
+		saveGameState();
 	}
 	
 	function toast(msg){
@@ -2110,8 +2184,8 @@ function showMilestoneOverlay(stars) {
 
   // defaults
   try {
-    if (localStorage.getItem(LS_MUTED) === null) localStorage.setItem(LS_MUTED, 'true');
-    if (localStorage.getItem(LS_VOL) === null) localStorage.setItem(LS_VOL, '0');
+    if (localStorage.getItem(LS_MUTED) === null) localStorage.setItem(LS_MUTED, 'false');
+    if (localStorage.getItem(LS_VOL) === null) localStorage.setItem(LS_VOL, '0.7');
   } catch(e){}
 
   const state = {
