@@ -829,8 +829,17 @@ function showMilestoneOverlay(stars) {
     const url = (stars === 20)
       ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
       : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
-    if (typeof playUrlSound === 'function') playUrlSound(url);
-  } catch(e) {}
+    
+    // Ensure audio state exists and is not muted
+    const audioState = window.__qr_audio_state__;
+    if (audioState && !audioState.muted && audioState.volume > 0) {
+      if (typeof playUrlSound === 'function') {
+        playUrlSound(url);
+      }
+    }
+  } catch(e) {
+    console.log('Could not play milestone sound:', e);
+  }
 
   setTimeout(()=>overlay.remove(), 3400);
 }
@@ -1026,8 +1035,17 @@ function showMilestoneOverlay(stars) {
     const url = (stars === 20)
       ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
       : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
-    playUrlSound(url);
-  } catch(e) {}
+    
+    // Ensure audio state exists and is not muted
+    const audioState = window.__qr_audio_state__;
+    if (audioState && !audioState.muted && audioState.volume > 0) {
+      if (typeof playUrlSound === 'function') {
+        playUrlSound(url);
+      }
+    }
+  } catch(e) {
+    console.log('Could not play milestone sound:', e);
+  }
 
   setTimeout(()=>overlay.remove(), 3400);
 }
@@ -1727,7 +1745,7 @@ function updateStars() {
 			updateStars();
 
     /* total-milestones */
-    if ([3,5,10,20].includes(totalCorrect)) {
+    if ([3,5,10,15,20].includes(totalCorrect)) {
       showMilestoneOverlay(totalCorrect);
       if (totalCorrect === 20) {
         setTimeout(()=>{
@@ -1741,17 +1759,14 @@ function updateStars() {
 			if (streak === 3) {
 				toast("🎉 3 in a row! Great job!");
 				celebrate();
-				showMilestoneOverlay(3);
 			} else if (streak === 10) {
 				toast("🏆 10 STREAK! AMAZING!");
 				megaCelebrate();
 				playMilestoneSound();
-				showMilestoneOverlay(10);
 			} else if (streak === 20) {
 				toast("🌟 20 STREAK! YOU'RE A CHAMPION!");
 				megaCelebrate();
 				playMilestoneSound();
-				showMilestoneOverlay(20);
 			} else if (streak % 5 === 0 && streak > 0) {
 				toast(`🔥 ${streak} streak! Keep going!`);
 				celebrate();
@@ -2097,8 +2112,17 @@ function showMilestoneOverlay(stars) {
     const url = (stars === 20)
       ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
       : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
-    playUrlSound(url);
-  } catch(e) {}
+    
+    // Ensure audio state exists and is not muted
+    const audioState = window.__qr_audio_state__;
+    if (audioState && !audioState.muted && audioState.volume > 0) {
+      if (typeof playUrlSound === 'function') {
+        playUrlSound(url);
+      }
+    }
+  } catch(e) {
+    console.log('Could not play milestone sound:', e);
+  }
 
   setTimeout(()=>overlay.remove(), 3400);
 }
@@ -2421,8 +2445,17 @@ function showMilestoneOverlay(stars) {
     const url = (stars === 20)
       ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
       : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
-    playUrlSound(url);
-  } catch(e) {}
+    
+    // Ensure audio state exists and is not muted
+    const audioState = window.__qr_audio_state__;
+    if (audioState && !audioState.muted && audioState.volume > 0) {
+      if (typeof playUrlSound === 'function') {
+        playUrlSound(url);
+      }
+    }
+  } catch(e) {
+    console.log('Could not play milestone sound:', e);
+  }
 
   setTimeout(()=>overlay.remove(), 3400);
 }
