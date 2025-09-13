@@ -351,6 +351,145 @@
 			padding: 20px;
 			font-style: italic;
 		}
+		
+		/* Portrait fallback for tablets */
+		@media screen and (min-width: 768px) and (orientation: portrait) {
+			.main-content {
+				display: block;
+			}
+			
+			main {
+				max-width: 600px;
+				margin: 0 auto;
+			}
+		}
+		
+		/* Landscape iPad optimizations */
+		@media screen and (min-width: 768px) and (orientation: landscape) {
+			body {
+				overflow-x: hidden;
+			}
+			
+			main {
+				max-width: none;
+				padding: 16px;
+				gap: 16px;
+			}
+			
+			.main-content {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 20px;
+				align-items: start;
+			}
+			
+			.game-panel {
+				order: 1;
+			}
+			
+			.word-list-panel {
+				order: 2;
+			}
+			
+			.word {
+				font-size: clamp(28px, 6vw, 48px);
+				padding: 20px 16px;
+				margin: 16px 0;
+			}
+			
+			#videoContainer {
+				max-width: 400px;
+				margin: 16px auto;
+			}
+			
+			.row {
+				flex-wrap: nowrap;
+				gap: 8px;
+			}
+			
+			button {
+				padding: 10px 16px;
+				font-size: 14px;
+			}
+			
+			#muteBtn, #themeBtn {
+				font-size: 20px;
+				padding: 8px 12px;
+				min-width: 50px;
+			}
+			
+			header h1 {
+				font-size: 20px;
+			}
+			
+			.card {
+				padding: 16px;
+			}
+			
+			#pictogram {
+				min-height: 150px;
+				margin: 16px 0;
+			}
+			
+			#pictogram img {
+				max-width: 200px;
+			}
+			
+			.status {
+				font-size: 16px;
+				margin: 8px 0;
+			}
+			
+			#stars {
+				font-size: 28px;
+				margin: 8px 0;
+			}
+			
+			.tag {
+				font-size: 13px;
+				padding: 6px 12px;
+			}
+			
+			textarea {
+				font-size: 14px;
+			}
+			
+			details summary {
+				font-size: 16px;
+			}
+		}
+		
+		/* Larger landscape screens (iPad Pro, desktop) */
+		@media screen and (min-width: 1024px) and (orientation: landscape) {
+			main {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 20px;
+			}
+			
+			.main-content {
+				grid-template-columns: 1.2fr 0.8fr;
+				gap: 30px;
+			}
+			
+			.word {
+				font-size: clamp(32px, 5vw, 56px);
+				padding: 24px 20px;
+			}
+			
+			#videoContainer {
+				max-width: 450px;
+			}
+			
+			button {
+				padding: 12px 20px;
+				font-size: 16px;
+			}
+			
+			.card {
+				padding: 20px;
+			}
+		}
 	</style>
 </head>
 <body class="light">
@@ -359,53 +498,54 @@
 		<button id="themeBtn" title="Toggle theme">🌙</button>
 	</header>
 	<main>
-		<div class="card">
-			<div class="row" style="justify-content:space-between;">
-				<div class="row">
-					<button id="startBtn">Start camera</button>
-					<button id="stopBtn" disabled>Stop</button>
-					<button id="nextBtn">New word</button>
-					<button id="muteBtn" title="Toggle sound">🔊</button>
-				</div>
-				<div class="selects">
-					<div class="toggle" title="Display mode">
-						<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
-						<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
+		<div class="main-content">
+			<div class="card game-panel">
+				<div class="row" style="justify-content:space-between;">
+					<div class="row">
+						<button id="startBtn">Start camera</button>
+						<button id="stopBtn" disabled>Stop</button>
+						<button id="nextBtn">New word</button>
+						<button id="muteBtn" title="Toggle sound">🔊</button>
+					</div>
+					<div class="selects">
+						<div class="toggle" title="Display mode">
+							<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
+							<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
+						</div>
 					</div>
 				</div>
-			</div>
-			<div id="currentWord" class="word" aria-live="polite">gato</div>
-			<div id="pictogram"></div>
-			<div id="stars"></div>
-			<div class="status" id="status"></div>
-			
-			<div id="videoContainer" style="display:none;">
-				<video id="video" playsinline></video>
-				<div class="scan-region">
-					<div class="scan-line"></div>
+				<div id="currentWord" class="word" aria-live="polite">gato</div>
+				<div id="pictogram"></div>
+				<div id="stars"></div>
+				<div class="status" id="status"></div>
+				
+				<div id="videoContainer" style="display:none;">
+					<video id="video" playsinline></video>
+					<div class="scan-region">
+						<div class="scan-line"></div>
+					</div>
 				</div>
-			</div>
-			<canvas id="canvas"></canvas>
-			
-			<div class="row">
-				<div class="tag" id="scoreTag">Score: 0</div>
-				<div class="tag" id="streakTag">Streak: 0 🔥</div>
-			</div>
-			<div id="err"></div>
-			<details style="margin-top: 8px;">
-				<summary style="cursor: pointer; font-size: 12px;">📷 Camera troubleshooting</summary>
-				<div style="padding: 10px; font-size: 12px; line-height: 1.5;">
-					<strong>If camera won't start:</strong><br>
-					• First time? Click "Allow" when browser asks for camera permission<br>
-					• Blocked before? Click lock icon in address bar → Camera → Allow → Refresh<br>
-					• On iPhone? Use Safari (Chrome on iOS doesn't support cameras well)<br>
-					• Camera stuck? Try Stop then Start again<br>
-					• Still stuck? Refresh the page
+				<canvas id="canvas"></canvas>
+				
+				<div class="row">
+					<div class="tag" id="scoreTag">Score: 0</div>
+					<div class="tag" id="streakTag">Streak: 0 🔥</div>
 				</div>
-			</details>
-		</div>
+				<div id="err"></div>
+				<details style="margin-top: 8px;">
+					<summary style="cursor: pointer; font-size: 12px;">📷 Camera troubleshooting</summary>
+					<div style="padding: 10px; font-size: 12px; line-height: 1.5;">
+						<strong>If camera won't start:</strong><br>
+						• First time? Click "Allow" when browser asks for camera permission<br>
+						• Blocked before? Click lock icon in address bar → Camera → Allow → Refresh<br>
+						• On iPhone? Use Safari (Chrome on iOS doesn't support cameras well)<br>
+						• Camera stuck? Try Stop then Start again<br>
+						• Still stuck? Refresh the page
+					</div>
+				</details>
+			</div>
 
-		<div class="card">
+			<div class="card word-list-panel">
 			<details open>
 				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
 				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
@@ -439,7 +579,9 @@ tres</textarea>
 					• These words are guaranteed to have pictogram images
 				</div>
 			</details>
+			</div>
 		</div>
+	</main>
 	
 <div id="volumePanel" style="display:none; opacity:1; transition: opacity .5s ease; position:fixed; right:12px; top:48px; z-index:9999; background:#0f1624; color:#cde3ff; border:1px solid #1f2a3d; border-radius:10px; padding:8px 10px; width:180px; box-shadow:0 10px 30px rgba(0,0,0,.35)">
   <div style="font-size:12px; margin-bottom:4px;">Volume</div>
