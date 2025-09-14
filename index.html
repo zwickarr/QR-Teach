@@ -236,8 +236,8 @@
 		
 		.camera-panel #videoContainer {
 			margin: 0;
-			max-width: 300px;
-			width: 300px;
+			max-width: 280px;
+			width: 280px;
 		}
 		
 		/* Mobile: Stack camera vertically */
@@ -429,20 +429,24 @@
 			}
 			
 			.main-content.camera-active {
-				grid-template-columns: 1fr auto 1fr;
+				grid-template-columns: minmax(300px, 0.9fr) auto minmax(280px, 0.8fr);
+				gap: 12px;
 			}
 			
 			.game-panel {
 				order: 1;
+				min-width: 0; /* Allow shrinking */
 			}
 			
 			.camera-panel {
 				order: 2;
-				padding: 8px;
+				padding: 4px;
+				min-width: 280px;
 			}
 			
 			.word-list-panel {
 				order: 3;
+				min-width: 0; /* Allow shrinking */
 			}
 			
 			.word {
@@ -462,8 +466,13 @@
 			}
 			
 			button {
-				padding: 10px 16px;
-				font-size: 14px;
+				padding: 8px 12px;
+				font-size: 13px;
+			}
+			
+			.main-content.camera-active button {
+				padding: 6px 10px;
+				font-size: 12px;
 			}
 			
 			#muteBtn, #themeBtn {
@@ -478,6 +487,15 @@
 			
 			.card {
 				padding: 16px;
+			}
+			
+			.main-content.camera-active .card {
+				padding: 12px;
+			}
+			
+			.main-content.camera-active .row {
+				gap: 6px;
+				margin: 8px 0;
 			}
 			
 			#pictogram {
@@ -508,9 +526,19 @@
 				font-size: 14px;
 			}
 			
+			.main-content.camera-active textarea {
+				font-size: 12px;
+				min-height: 120px;
+			}
+			
 			input[type="text"] {
 				font-size: 14px;
 				padding: 6px 10px;
+			}
+			
+			.main-content.camera-active input[type="text"] {
+				font-size: 12px;
+				padding: 4px 8px;
 			}
 			
 			details summary {
@@ -532,8 +560,8 @@
 			}
 			
 			.main-content.camera-active {
-				grid-template-columns: 1fr auto 1fr;
-				gap: 20px;
+				grid-template-columns: minmax(350px, 1fr) auto minmax(300px, 0.9fr);
+				gap: 16px;
 			}
 			
 			.word {
@@ -890,14 +918,34 @@ function showMilestoneOverlay(stars) {
 
   function makeRow(cnt){
     const row = document.createElement('div');
-    Object.assign(row.style, { display:'grid', gap:'6px', justifyContent:'center', alignItems:'center' });
-    for (let i=0;i<cnt;i++){ const s=document.createElement('span'); s.textContent='⭐'; s.style.display='block'; s.style.textAlign='center'; row.appendChild(s); }
+    Object.assign(row.style, { 
+      display:'flex', 
+      gap:'8px', 
+      justifyContent:'center', 
+      alignItems:'center',
+      fontSize:'32px'
+    });
+    for (let i=0;i<cnt;i++){ 
+      const s=document.createElement('span'); 
+      s.textContent='⭐'; 
+      s.style.display='block'; 
+      s.style.textAlign='center'; 
+      row.appendChild(s); 
+    }
     return row;
   }
   const row1 = makeRow(Math.min(stars, 10));
   const row2 = stars>10 ? makeRow(stars-10) : null;
   const starsWrap = document.createElement('div');
-  Object.assign(starsWrap.style, { display:'flex', flexDirection:'column', gap:'8px', marginBottom:'8px', alignItems:'center' });
+  Object.assign(starsWrap.style, { 
+    display:'flex', 
+    flexDirection:'column', 
+    gap:'8px', 
+    marginBottom:'16px', 
+    alignItems:'center',
+    justifyContent:'center',
+    width:'100%'
+  });
   starsWrap.appendChild(row1); if (row2) starsWrap.appendChild(row2);
 
   const titleEl = document.createElement('div');
