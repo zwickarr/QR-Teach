@@ -351,21 +351,93 @@
 			align-items: center;
 			flex-wrap: wrap;
 		}
-		.toggle {
-			display: flex;
-			gap: 4px;
-			padding: 4px;
-			border-radius: 999px;
-		}
-		.toggle label {
-			padding: 8px 16px;
-			border-radius: 999px;
-			cursor: pointer;
-			user-select: none;
+		/* W3Schools Toggle Switch */
+		.display-mode-label {
+			font-size: 14px;
 			font-weight: 600;
-			transition: all 0.3s;
+			margin-bottom: 8px;
+			color: inherit;
 		}
-		.toggle input { display: none; }
+		
+		.switch {
+			position: relative;
+			display: inline-block;
+			width: 60px;
+			height: 34px;
+		}
+		
+		.switch input {
+			opacity: 0;
+			width: 0;
+			height: 0;
+		}
+		
+		.slider {
+			position: absolute;
+			cursor: pointer;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: #ccc;
+			transition: .4s;
+			border-radius: 34px;
+		}
+		
+		.slider:before {
+			position: absolute;
+			content: "";
+			height: 26px;
+			width: 26px;
+			left: 4px;
+			bottom: 4px;
+			background-color: white;
+			transition: .4s;
+			border-radius: 50%;
+		}
+		
+		input:checked + .slider {
+			background-color: #667eea;
+		}
+		
+		input:focus + .slider {
+			box-shadow: 0 0 1px #667eea;
+		}
+		
+		input:checked + .slider:before {
+			transform: translateX(26px);
+		}
+		
+		/* Dark theme toggle styling */
+		.dark input:checked + .slider {
+			background-color: #4c51bf;
+		}
+		
+		.dark input:focus + .slider {
+			box-shadow: 0 0 1px #4c51bf;
+		}
+		
+		/* Compact mode for camera active */
+		.main-content.camera-active .switch {
+			width: 45px;
+			height: 26px;
+		}
+		
+		.main-content.camera-active .slider:before {
+			height: 20px;
+			width: 20px;
+			left: 3px;
+			bottom: 3px;
+		}
+		
+		.main-content.camera-active input:checked + .slider:before {
+			transform: translateX(19px);
+		}
+		
+		.main-content.camera-active .display-mode-label {
+			font-size: 12px;
+			margin-bottom: 6px;
+		}
 		details {
 			margin: 10px 0;
 		}
@@ -461,8 +533,13 @@
 			}
 			
 			.row {
-				flex-wrap: nowrap;
+				flex-wrap: wrap;
 				gap: 8px;
+			}
+			
+			.main-content.camera-active .row {
+				flex-wrap: nowrap;
+				gap: 6px;
 			}
 			
 			button {
@@ -494,7 +571,6 @@
 			}
 			
 			.main-content.camera-active .row {
-				gap: 6px;
 				margin: 8px 0;
 			}
 			
@@ -592,18 +668,19 @@
 	<main>
 		<div class="main-content">
 			<div class="card game-panel">
-				<div class="row" style="justify-content:space-between;">
-					<div class="row">
+				<div class="row" style="justify-content:space-between; flex-wrap: wrap;">
+					<div class="row" style="flex: 1; min-width: 0;">
 						<button id="startBtn">Start camera</button>
 						<button id="stopBtn" disabled>Stop</button>
 						<button id="nextBtn">New word</button>
 						<button id="muteBtn" title="Toggle sound">🔊</button>
 					</div>
-					<div class="selects">
-						<div class="toggle" title="Display mode">
-							<label><input type="radio" name="display" value="word" checked><span>Word</span></label>
-							<label><input type="radio" name="display" value="pictogram"><span>Pictogram</span></label>
-						</div>
+					<div class="selects" style="flex-shrink: 0;">
+						<div class="display-mode-label">Word/Pictogram</div>
+						<label class="switch">
+							<input type="checkbox" id="displayToggle">
+							<span class="slider"></span>
+						</label>
 					</div>
 				</div>
 				<div id="currentWord" class="word" aria-live="polite">gato</div>
@@ -651,7 +728,7 @@
 				</div>
 			<details open>
 				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
-				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
+				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed.</p>
 				<textarea id="wordList" rows="6">gato
 ratón
 castillo
@@ -662,6 +739,8 @@ tres</textarea>
 					<button id="saveWords">Save list</button>
 					<button id="clearWords" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);">Clear list</button>
 					<button id="downloadWords">Download list</button>
+				</div>
+				<div class="row" style="margin-top: 8px;">
 					<button id="uploadBtn">Load from file</button>
 					<button id="loadArasaacBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Load ARASAAC words</button>
 					<input type="file" id="fileInput" accept=".txt" style="display:none;">
@@ -1342,7 +1421,7 @@ function showMilestoneOverlay(stars) {
 	const fileInput = document.getElementById('fileInput');
 	const scoreTag = document.getElementById('scoreTag');
 	const streakTag = document.getElementById('streakTag');
-	const displayRadios = document.querySelectorAll('input[name="display"]');
+	const displayToggle = document.getElementById('displayToggle');
 	const errEl = document.getElementById('err');
 	const video = document.getElementById('video');
 	const canvas = document.getElementById('canvas');
@@ -1372,10 +1451,8 @@ function showMilestoneOverlay(stars) {
 	let currentPictogramId = null;
 	let milestonePopupShowing = false;
 	
-	// Initialize display mode
-	for (const r of displayRadios) {
-		if (r.value === displayMode) r.checked = true;
-	}
+	// Initialize display mode (Word = unchecked, Pictogram = checked)
+	displayToggle.checked = displayMode === 'pictogram';
 	
 	// Initialize mute button
 	muteBtn.textContent = isMuted ? '🔇' : '🔊';
@@ -1540,11 +1617,11 @@ function showMilestoneOverlay(stars) {
 	});
 	
 	// Display mode toggle
-	displayRadios.forEach(r => r.addEventListener('change', () => {
-		displayMode = r.value;
+	displayToggle.addEventListener('change', () => {
+		displayMode = displayToggle.checked ? 'pictogram' : 'word';
 		localStorage.setItem(LS_DISPLAY, displayMode);
 		updateDisplay(wordEl.textContent);
-	}));
+	});
 
 	// Check for native BarcodeDetector support
 	if ('BarcodeDetector' in window) {
