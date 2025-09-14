@@ -556,6 +556,9 @@
 					<input type="text" id="studentName" placeholder="Enter student name" 
 						   style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 2px solid #e0e6ed; font-size: 14px;">
 				</div>
+				<div class="row" style="margin-bottom: 16px;">
+					<button id="newGameBtn" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; font-weight: 600;">🎮 New Game</button>
+				</div>
 			<details open>
 				<summary style="font-weight: bold; margin-bottom: 8px;">Word list</summary>
 				<p class="small">Edit below to customize. One word per line. Duplicates are automatically removed (case-insensitive).</p>
@@ -639,6 +642,55 @@ function playUrlSound(url){
   } catch(e) {}
 }
 
+function playUrlSoundWithFallback(urls) {
+  if (!urls || urls.length === 0) return;
+  
+  const st = (window && window.__qr_audio_state__) || { muted:true, volume:0 };
+  if (st.muted || st.volume <= 0) return;
+  
+  let currentIndex = 0;
+  
+  function tryNextUrl() {
+    if (currentIndex >= urls.length) {
+      console.log('All sound URLs failed');
+      return;
+    }
+    
+    const url = urls[currentIndex];
+    console.log(`Trying sound URL ${currentIndex + 1}/${urls.length}: ${url}`);
+    
+    try {
+      const audio = new Audio(url);
+      audio.volume = st.volume;
+      
+      audio.addEventListener('canplaythrough', () => {
+        console.log(`Successfully loaded sound: ${url}`);
+        audio.play().catch(e => {
+          console.log(`Play failed for ${url}:`, e);
+          currentIndex++;
+          tryNextUrl();
+        });
+      }, { once: true });
+      
+      audio.addEventListener('error', (e) => {
+        console.log(`Failed to load sound ${url}:`, e);
+        currentIndex++;
+        tryNextUrl();
+      }, { once: true });
+      
+      // Start loading
+      audio.load();
+      
+    } catch(e) {
+      console.log(`Error creating audio for ${url}:`, e);
+      currentIndex++;
+      tryNextUrl();
+    }
+  }
+  
+  tryNextUrl();
+}
+
 
 /* LP_DEBUG_AND_AUDIO_BOOTSTRAP */
 document.addEventListener('DOMContentLoaded', () => {
@@ -760,6 +812,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function showMilestoneOverlay(stars) {
+  milestonePopupShowing = true; // Pause QR scanning
+  
   const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
   const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
 
@@ -826,22 +880,36 @@ function showMilestoneOverlay(stars) {
   fit(); window.addEventListener('resize', fit, { once:true });
 
   try {
-    const url = (stars === 20)
-      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
-      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    // Try multiple formats for better browser compatibility
+    const urls = stars === 20 
+      ? [
+          './sfx/Victory.flac',
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/Victory.flac'
+        ]
+      : [
+          './sfx/TadaFanfare.flac', 
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
+        ];
     
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
     if (audioState && !audioState.muted && audioState.volume > 0) {
-      if (typeof playUrlSound === 'function') {
-        playUrlSound(url);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        playUrlSound(urls[0]);
       }
     }
   } catch(e) {
     console.log('Could not play milestone sound:', e);
   }
 
-  setTimeout(()=>overlay.remove(), 3400);
+  setTimeout(() => {
+    overlay.remove();
+    milestonePopupShowing = false; // Resume QR scanning
+  }, 3400);
 }
 
 function playUrlSound(url){
@@ -974,6 +1042,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function showMilestoneOverlay(stars) {
+  milestonePopupShowing = true; // Pause QR scanning
+  
   const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
   const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
 
@@ -1032,22 +1102,36 @@ function showMilestoneOverlay(stars) {
   fit(); window.addEventListener('resize', fit, { once:true });
 
   try {
-    const url = (stars === 20)
-      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
-      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    // Try multiple formats for better browser compatibility
+    const urls = stars === 20 
+      ? [
+          './sfx/Victory.flac',
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/Victory.flac'
+        ]
+      : [
+          './sfx/TadaFanfare.flac', 
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
+        ];
     
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
     if (audioState && !audioState.muted && audioState.volume > 0) {
-      if (typeof playUrlSound === 'function') {
-        playUrlSound(url);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        playUrlSound(urls[0]);
       }
     }
   } catch(e) {
     console.log('Could not play milestone sound:', e);
   }
 
-  setTimeout(()=>overlay.remove(), 3400);
+  setTimeout(() => {
+    overlay.remove();
+    milestonePopupShowing = false; // Resume QR scanning
+  }, 3400);
 }
 
 
@@ -1120,6 +1204,7 @@ function showMilestoneOverlay(stars) {
 	const pictogramEl = document.getElementById('pictogram');
 	const loadingMsg = document.getElementById('loadingMsg');
 	const studentNameInput = document.getElementById('studentName');
+	const newGameBtn = document.getElementById('newGameBtn');
 
 	// State
 	const LS_KEY = "qr-word-game:list";
@@ -1137,6 +1222,7 @@ function showMilestoneOverlay(stars) {
 	let correctWords = [];
 	let displayMode = localStorage.getItem(LS_DISPLAY) || 'word';
 	let currentPictogramId = null;
+	let milestonePopupShowing = false;
 	
 	// Initialize display mode
 	for (const r of displayRadios) {
@@ -1207,6 +1293,34 @@ function showMilestoneOverlay(stars) {
 	
 	// Save game state before page unload
 	window.addEventListener('beforeunload', saveGameState);
+	
+	// New Game functionality
+	function newGame() {
+		if (confirm("Start a new game? This will reset your score, streak, and stars.")) {
+			// Reset game state
+			score = 0;
+			streak = 0;
+			correctWords = [];
+			
+			// Update UI
+			scoreTag.textContent = "Score: " + score;
+			streakTag.textContent = "Streak: " + streak + " 🔥";
+			updateStars();
+			
+			// Save the reset state
+			saveGameState();
+			
+			// Set new word
+			setWord(randomWord());
+			
+			toast("🎮 New game started!");
+		}
+	}
+	
+	// Add event listener for New Game button
+	if (newGameBtn) {
+		newGameBtn.addEventListener('click', newGame);
+	}
 	
 	// Sound generation
 	function initAudio() {
@@ -1791,7 +1905,7 @@ function updateStars() {
 
 	// QR Code detection
 	async function scanFrame() {
-		if (!scanning || !video.videoWidth) return;
+		if (!scanning || !video.videoWidth || milestonePopupShowing) return;
 
 		canvas.width = video.videoWidth;
 		canvas.height = video.videoHeight;
@@ -2051,6 +2165,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function showMilestoneOverlay(stars) {
+  milestonePopupShowing = true; // Pause QR scanning
+  
   const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
   const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
 
@@ -2109,22 +2225,36 @@ function showMilestoneOverlay(stars) {
   fit(); window.addEventListener('resize', fit, { once:true });
 
   try {
-    const url = (stars === 20)
-      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
-      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    // Try multiple formats for better browser compatibility
+    const urls = stars === 20 
+      ? [
+          './sfx/Victory.flac',
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/Victory.flac'
+        ]
+      : [
+          './sfx/TadaFanfare.flac', 
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
+        ];
     
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
     if (audioState && !audioState.muted && audioState.volume > 0) {
-      if (typeof playUrlSound === 'function') {
-        playUrlSound(url);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        playUrlSound(urls[0]);
       }
     }
   } catch(e) {
     console.log('Could not play milestone sound:', e);
   }
 
-  setTimeout(()=>overlay.remove(), 3400);
+  setTimeout(() => {
+    overlay.remove();
+    milestonePopupShowing = false; // Resume QR scanning
+  }, 3400);
 }
 
 
@@ -2384,6 +2514,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function showMilestoneOverlay(stars) {
+  milestonePopupShowing = true; // Pause QR scanning
+  
   const name = (document.getElementById('studentName')?.value || localStorage.getItem('qr-word-game:student-name') || '').trim();
   const shout = (stars === 20) ? 'YOU WIN!' : (name ? ('KEEP GOING, ' + name.toUpperCase() + '!') : 'KEEP GOING!');
 
@@ -2442,22 +2574,36 @@ function showMilestoneOverlay(stars) {
   fit(); window.addEventListener('resize', fit, { once:true });
 
   try {
-    const url = (stars === 20)
-      ? 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac'
-      : 'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac';
+    // Try multiple formats for better browser compatibility
+    const urls = stars === 20 
+      ? [
+          './sfx/Victory.flac',
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/Victory.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/Victory.flac'
+        ]
+      : [
+          './sfx/TadaFanfare.flac', 
+          'https://raw.githubusercontent.com/zwickarr/QR-Teach/main/sfx/TadaFanfare.flac',
+          'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
+        ];
     
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
     if (audioState && !audioState.muted && audioState.volume > 0) {
-      if (typeof playUrlSound === 'function') {
-        playUrlSound(url);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        playUrlSound(urls[0]);
       }
     }
   } catch(e) {
     console.log('Could not play milestone sound:', e);
   }
 
-  setTimeout(()=>overlay.remove(), 3400);
+  setTimeout(() => {
+    overlay.remove();
+    milestonePopupShowing = false; // Resume QR scanning
+  }, 3400);
 }
 
 
