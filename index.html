@@ -127,6 +127,22 @@
 			flex-direction: column;
 			min-height: 100vh;
 			transition: background 0.3s ease;
+			position: relative;
+		}
+
+		body::before {
+			content: '';
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-image: url('./images/background-pattern.png');
+			background-repeat: repeat;
+			background-size: 200px 200px;
+			opacity: 0.03;
+			z-index: -1;
+			pointer-events: none;
 		}
 		header { 
 			padding: 16px 20px;
@@ -893,9 +909,28 @@ function showMilestoneOverlay(stars) {
           'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
         ];
     
+    console.log(`Milestone ${stars}: Attempting to play sound`);
+    
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
+    console.log('Audio state:', audioState);
+    
     if (audioState && !audioState.muted && audioState.volume > 0) {
+      console.log(`Audio enabled - muted: ${audioState.muted}, volume: ${audioState.volume}`);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        console.log('Using playUrlSoundWithFallback');
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        console.log('Using playUrlSound fallback');
+        playUrlSound(urls[0]);
+      } else {
+        console.log('No sound functions available');
+      }
+    } else {
+      console.log(`Audio disabled - audioState exists: ${!!audioState}, muted: ${audioState?.muted}, volume: ${audioState?.volume}`);
+      
+      // Try to play anyway as fallback (since debug menu works)
+      console.log('Attempting fallback sound play');
       if (typeof playUrlSoundWithFallback === 'function') {
         playUrlSoundWithFallback(urls);
       } else if (typeof playUrlSound === 'function') {
@@ -1115,9 +1150,28 @@ function showMilestoneOverlay(stars) {
           'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
         ];
     
+    console.log(`Milestone ${stars}: Attempting to play sound`);
+    
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
+    console.log('Audio state:', audioState);
+    
     if (audioState && !audioState.muted && audioState.volume > 0) {
+      console.log(`Audio enabled - muted: ${audioState.muted}, volume: ${audioState.volume}`);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        console.log('Using playUrlSoundWithFallback');
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        console.log('Using playUrlSound fallback');
+        playUrlSound(urls[0]);
+      } else {
+        console.log('No sound functions available');
+      }
+    } else {
+      console.log(`Audio disabled - audioState exists: ${!!audioState}, muted: ${audioState?.muted}, volume: ${audioState?.volume}`);
+      
+      // Try to play anyway as fallback (since debug menu works)
+      console.log('Attempting fallback sound play');
       if (typeof playUrlSoundWithFallback === 'function') {
         playUrlSoundWithFallback(urls);
       } else if (typeof playUrlSound === 'function') {
@@ -2238,9 +2292,28 @@ function showMilestoneOverlay(stars) {
           'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
         ];
     
+    console.log(`Milestone ${stars}: Attempting to play sound`);
+    
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
+    console.log('Audio state:', audioState);
+    
     if (audioState && !audioState.muted && audioState.volume > 0) {
+      console.log(`Audio enabled - muted: ${audioState.muted}, volume: ${audioState.volume}`);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        console.log('Using playUrlSoundWithFallback');
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        console.log('Using playUrlSound fallback');
+        playUrlSound(urls[0]);
+      } else {
+        console.log('No sound functions available');
+      }
+    } else {
+      console.log(`Audio disabled - audioState exists: ${!!audioState}, muted: ${audioState?.muted}, volume: ${audioState?.volume}`);
+      
+      // Try to play anyway as fallback (since debug menu works)
+      console.log('Attempting fallback sound play');
       if (typeof playUrlSoundWithFallback === 'function') {
         playUrlSoundWithFallback(urls);
       } else if (typeof playUrlSound === 'function') {
@@ -2587,9 +2660,28 @@ function showMilestoneOverlay(stars) {
           'https://github.com/zwickarr/QR-Teach/raw/main/sfx/TadaFanfare.flac'
         ];
     
+    console.log(`Milestone ${stars}: Attempting to play sound`);
+    
     // Ensure audio state exists and is not muted
     const audioState = window.__qr_audio_state__;
+    console.log('Audio state:', audioState);
+    
     if (audioState && !audioState.muted && audioState.volume > 0) {
+      console.log(`Audio enabled - muted: ${audioState.muted}, volume: ${audioState.volume}`);
+      if (typeof playUrlSoundWithFallback === 'function') {
+        console.log('Using playUrlSoundWithFallback');
+        playUrlSoundWithFallback(urls);
+      } else if (typeof playUrlSound === 'function') {
+        console.log('Using playUrlSound fallback');
+        playUrlSound(urls[0]);
+      } else {
+        console.log('No sound functions available');
+      }
+    } else {
+      console.log(`Audio disabled - audioState exists: ${!!audioState}, muted: ${audioState?.muted}, volume: ${audioState?.volume}`);
+      
+      // Try to play anyway as fallback (since debug menu works)
+      console.log('Attempting fallback sound play');
       if (typeof playUrlSoundWithFallback === 'function') {
         playUrlSoundWithFallback(urls);
       } else if (typeof playUrlSound === 'function') {
